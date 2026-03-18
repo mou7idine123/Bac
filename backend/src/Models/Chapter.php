@@ -11,9 +11,14 @@ class Chapter {
         $this->db = Database::getInstance()->getConnection();
     }
 
-    public function getBySubject($subjectId) {
-        $stmt = $this->db->prepare("SELECT * FROM chapters WHERE subject_id = :subject_id ORDER BY order_index ASC");
-        $stmt->execute(['subject_id' => $subjectId]);
+    public function getBySubject($subjectId, $series = null) {
+        if ($series) {
+            $stmt = $this->db->prepare("SELECT * FROM chapters WHERE subject_id = :subject_id AND (series = :series OR series = 'both') ORDER BY order_index ASC");
+            $stmt->execute(['subject_id' => $subjectId, 'series' => $series]);
+        } else {
+            $stmt = $this->db->prepare("SELECT * FROM chapters WHERE subject_id = :subject_id ORDER BY order_index ASC");
+            $stmt->execute(['subject_id' => $subjectId]);
+        }
         return $stmt->fetchAll();
     }
 

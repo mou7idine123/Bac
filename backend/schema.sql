@@ -37,8 +37,9 @@ CREATE TABLE IF NOT EXISTS lessons (
     id INT AUTO_INCREMENT PRIMARY KEY,
     chapter_id INT NOT NULL,
     title VARCHAR(255) NOT NULL,
-    content LONGTEXT NOT NULL,
-    video_url VARCHAR(255) NULL,
+    content LONGTEXT NULL,
+    pdf_path VARCHAR(255) NULL,
+    reference_links JSON NULL,
     order_index INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE

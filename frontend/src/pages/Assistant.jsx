@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, BookOpen, GitBranch, Brain, Zap } from 'lucide-react';
+import { API_BASE_URL } from '../apiConfig';
 
 const initialMessages = [
   {
@@ -11,10 +12,10 @@ const initialMessages = [
 ];
 
 const quickSuggestions = [
-  { label: 'Expliquer la loi d\'Ohm',    icon: Zap },
-  { label: 'Quiz sur les dérivées',       icon: GitBranch },
-  { label: 'Fiche sur la Génétique',      icon: BookOpen },
-  { label: 'Plan de révision Maths',      icon: Brain },
+  { label: 'Expliquer la loi d\'Ohm', icon: Zap },
+  { label: 'Quiz sur les dérivées', icon: GitBranch },
+  { label: 'Fiche sur la Génétique', icon: BookOpen },
+  { label: 'Plan de révision Maths', icon: Brain },
 ];
 
 export default function Assistant() {
@@ -27,24 +28,48 @@ export default function Assistant() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const handleSend = (text) => {
+  const handleSend = async (text) => {
     const msg = text !== undefined ? text : input;
     if (!msg.trim() || loading) return;
     const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-    setMessages(prev => [...prev, { id: Date.now(), role: 'user', text: msg, time: now }]);
+    const userMsg = { id: Date.now(), role: 'user', text: msg, time: now };
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput('');
     setLoading(true);
 
-    setTimeout(() => {
+    // Build history for the API (exclude initial greeting, only user/assistant turns)
+    const history = updatedMessages
+      .filter(m => m.id !== 1) // skip initial message
+      .slice(-10)              // keep last 10 messages for context window
+      .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+
+    try {
+      const token = localStorage.getItem('bac_token');
+      const res = await fetch(`${API_BASE_URL}/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ message: msg, history: history.slice(0, -1) }) // history without last user msg (already in message)
+      });
+      const data = await res.json();
+      const replyText = data.reply || data.error || 'Je n\'ai pas pu générer de réponse.';
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         role: 'assistant',
         time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        text: `Voici une explication claire sur **"${msg}"** :\n\nJe vais décomposer ce concept étape par étape pour vous aider à bien comprendre. N'hésitez pas à me demander des exemples supplémentaires, un quiz rapide sur ce sujet, ou une fiche de révision résumée.`,
+        text: replyText,
       }]);
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        role: 'assistant',
+        time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        text: '❌ Erreur de connexion. Vérifiez votre connexion et réessayez.',
+      }]);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (

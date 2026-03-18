@@ -7,18 +7,28 @@ import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import Courses from './pages/Courses';
 import Quizzes from './pages/Quizzes';
+import Exercises from './pages/Exercises';
+import Sheets from './pages/Sheets';
 import Assistant from './pages/Assistant';
 import Planning from './pages/Planning';
-import Progress from './pages/Progress';
 import Exams from './pages/Exams';
+import LessonView from './pages/LessonView';
+import ChapterSummaries from './pages/ChapterSummaries';
 
 // Admin Imports
 import AdminRoute from './components/AdminRoute';
 import AdminLayout from './layouts/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminSubjects from './pages/admin/AdminSubjects';
+import AdminChapters from './pages/admin/AdminChapters';
+import AdminResumes from './pages/admin/AdminResumes';
 import AdminCourses from './pages/admin/AdminCourses';
+import AdminSheets from './pages/admin/AdminSheets';
 import AdminExercises from './pages/admin/AdminExercises';
 import AdminQuizzes from './pages/admin/AdminQuizzes';
+import AdminSettings from './pages/admin/AdminSettings';
+import AdminExams from './pages/admin/AdminExams';
+import AdminUsers from './pages/admin/AdminUsers';
 
 function App() {
   return (
@@ -32,29 +42,39 @@ function App() {
           <Route
             path="/"
             element={
-               <ProtectedRoute>
-                  <Layout />
-               </ProtectedRoute>
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
             }
           >
-            <Route index            element={<Dashboard />} />
-            <Route path="courses"   element={<Courses />} />
-            <Route path="quizzes"   element={<Quizzes />} />
+            <Route index element={<Dashboard />} />
+            <Route path="courses" element={<Courses />} />
+            <Route path="courses/lesson/:lessonId" element={<LessonView />} />
+            <Route path="quizzes" element={<Quizzes />} />
+            <Route path="exercises" element={<Exercises />} />
+            <Route path="sheets" element={<Sheets />} />
             <Route path="assistant" element={<Assistant />} />
-            <Route path="planning"  element={<Planning />} />
-            <Route path="progress"  element={<Progress />} />
-            <Route path="exams"     element={<Exams />} />
+            <Route path="planning" element={<Planning />} />
+            <Route path="exams" element={<Exams />} />
+            <Route path="summaries" element={<ChapterSummaries />} />
           </Route>
           {/* Admin routes */}
-          <Route 
-             path="/admin" 
-             element={<AdminRoute><AdminLayout /></AdminRoute>}
+          <Route
+            path="/admin"
+            element={<AdminRoute><AdminLayout /></AdminRoute>}
           >
-             <Route index element={<AdminDashboard />} />
-             <Route path="courses" element={<AdminCourses />} />
-             <Route path="exercises" element={<AdminExercises />} />
-             <Route path="quizzes" element={<AdminQuizzes />} />
-             {/* Future admin pages will be added here */}
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="subjects" element={<AdminSubjects />} />
+            <Route path="chapters" element={<AdminChapters />} />
+            <Route path="resumes" element={<AdminResumes />} />
+            <Route path="courses" element={<AdminCourses />} />
+            <Route path="sheets" element={<AdminSheets />} />
+            <Route path="exercises" element={<AdminExercises />} />
+            <Route path="quizzes" element={<AdminQuizzes />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="exams" element={<AdminExams />} />
+            {/* Future admin pages will be added here */}
           </Route>
 
           {/* Fallback */}

@@ -1,6 +1,12 @@
 <?php
 // backend/api/index.php
 
+// Override PHP limits for large PDF uploads (AI conversion tool)
+@ini_set('upload_max_filesize', '200M');
+@ini_set('post_max_size', '210M');
+@ini_set('memory_limit', '512M');
+@ini_set('max_execution_time', '600');
+
 // ── Dynamic CORS (allow any localhost port for development) ──
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowed = false;
@@ -50,6 +56,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 header('Content-Type: application/json; charset=utf-8');
+
+// Serve uploaded files
+$uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+if (strpos($uri, '/uploads/') === 0) {
+    $filePath = __DIR__ . '/../public' . $uri;
+    if (file_exists($filePath)) {
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $mime = match($ext) {
+            'pdf'  => 'application/pdf',
+            'png'  => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            default => 'application/octet-stream',
+        };
+        header('Content-Type: ' . $mime);
+        header('Content-Disposition: inline; filename="' . basename($filePath) . '"');
+        header('Access-Control-Allow-Origin: *');
+        readfile($filePath);
+        exit;
+    } else {
+        http_response_code(404);
+        echo json_encode(['error' => 'Fichier introuvable']);
+        exit;
+    }
+}
 
 // Extraction de la route via l'URI ou un paramètre (ex: /api/index.php/auth/login)
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);

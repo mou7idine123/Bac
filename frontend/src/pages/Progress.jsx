@@ -1,25 +1,58 @@
-import React from 'react';
-import { BarChart2, TrendingUp, CheckCircle, Clock, Award } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BarChart2, TrendingUp, CheckCircle, Clock, Award, BookOpen } from 'lucide-react';
 import ProgressRing from '../components/ProgressRing';
-
-const subjects = [
-  { name: 'Mathématiques', emoji: '📘', progress: 80, score: 82, quizzes: 12, gradient: 'linear-gradient(90deg,#667eea,#764ba2)', color: '#667eea' },
-  { name: 'Physique',      emoji: '⚛️',  progress: 65, score: 71, quizzes: 8,  gradient: 'linear-gradient(90deg,#f093fb,#f5576c)', color: '#f5576c' },
-  { name: 'Sciences Nat.', emoji: '🌿',  progress: 72, score: 78, quizzes: 10, gradient: 'linear-gradient(90deg,#4facfe,#00f2fe)', color: '#4facfe' },
-];
+import { API_BASE_URL } from '../apiConfig';
 
 const quizHistory = [
-  { subject: 'Mathématiques', title: 'Limites et Continuité',  score: 8,  total: 10, date: '15 mars' },
-  { subject: 'Physique',      title: 'Cinématique',           score: 6,  total: 10, date: '13 mars' },
-  { subject: 'Sciences Nat.', title: 'Génétique',             score: 9,  total: 10, date: '11 mars' },
-  { subject: 'Mathématiques', title: 'Dérivées',              score: 7,  total: 10, date: '9 mars'  },
-  { subject: 'Physique',      title: 'Optique',               score: 5,  total: 10, date: '7 mars'  },
+  { subject: 'Mathématiques', title: 'Limites et Continuité', score: 8, total: 10, date: '15 mars' },
+  { subject: 'Physique', title: 'Cinématique', score: 6, total: 10, date: '13 mars' },
+  { subject: 'Sciences Nat.', title: 'Génétique', score: 9, total: 10, date: '11 mars' },
+  { subject: 'Mathématiques', title: 'Dérivées', score: 7, total: 10, date: '9 mars' },
+  { subject: 'Physique', title: 'Optique', score: 5, total: 10, date: '7 mars' },
 ];
 
-const subjectColor = { 'Mathématiques': '#667eea', 'Physique': '#f5576c', 'Sciences Nat.': '#4facfe' };
+const subjectColor = { 'Mathématiques': '#4f7af8', 'Physique': '#f5576c', 'Sciences Nat.': '#10b981', 'Informatique': '#8b5cf6', 'Option': '#f59e0b' };
 
 export default function Progress() {
-  const avgScore = Math.round(quizHistory.reduce((a, q) => a + (q.score / q.total) * 100, 0) / quizHistory.length);
+  const [stats, setStats] = useState({
+    quiz_stats: { attempts: 0, avg_score: 0 },
+    exercise_stats: { total: 0, completed: 0 },
+    exam_stats: { total: 0, completed: 0 },
+    subject_stats: []
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem('bac_token');
+      const res = await fetch(`${API_BASE_URL}/progress/dashboard`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await res.json();
+      if (result.exercise_stats) {
+        setStats(result);
+      }
+    } catch (err) { } finally { setLoading(false); }
+  };
+
+  const calculateGlobalProgress = () => {
+    let exProg = stats.exercise_stats.total > 0 ? (stats.exercise_stats.completed / stats.exercise_stats.total) * 100 : 0;
+    let examProg = stats.exam_stats.total > 0 ? (stats.exam_stats.completed / stats.exam_stats.total) * 100 : 0;
+    let qProg = stats.quiz_stats.avg_score || 0;
+    let items = 0; let total = 0;
+
+    if (stats.exercise_stats.total > 0) { items++; total += exProg; }
+    if (stats.exam_stats.total > 0) { items++; total += examProg; }
+    if (stats.quiz_stats.attempts > 0) { items++; total += qProg; }
+
+    return items > 0 ? Math.round(total / items) : 0;
+  };
+
+  const globalProgress = calculateGlobalProgress();
 
   return (
     <div>
@@ -33,10 +66,10 @@ export default function Progress() {
       {/* Summary stat cards */}
       <div className="grid stagger anim-fade-up" style={{ gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem', marginBottom: '1.75rem' }}>
         {[
-          { label: 'Score moyen',       value: `${avgScore}%`, icon: Award,      bg: 'rgba(79,122,248,0.1)',  color: '#4f7af8', trend: '↑ +4% ce mois' },
-          { label: 'Quiz complétés',    value: '35',           icon: CheckCircle, bg: 'rgba(46,213,115,0.1)', color: '#2ed573', trend: '↑ 5 ce mois' },
-          { label: 'Heures de révision',value: '42h',          icon: Clock,      bg: 'rgba(255,165,2,0.1)',  color: '#ffa502', trend: '↑ +6h' },
-          { label: 'Chapitres maîtrisés',value: '14/24',       icon: TrendingUp, bg: 'rgba(161,140,209,0.1)',color: '#a18cd1', trend: '+3 ce mois' },
+          { label: 'Score moyen (Quiz)', value: `${Math.round(stats.quiz_stats.avg_score || 0)}%`, icon: Award, bg: 'rgba(79,122,248,0.1)', color: '#4f7af8' },
+          { label: 'Quiz complétés', value: `${stats.quiz_stats.attempts}`, icon: CheckCircle, bg: 'rgba(46,213,115,0.1)', color: '#2ed573' },
+          { label: 'Exercices terminés', value: `${stats.exercise_stats.completed}/${stats.exercise_stats.total}`, icon: BookOpen, bg: 'rgba(16,185,129,0.1)', color: '#10b981' },
+          { label: 'Annales terminées', value: `${stats.exam_stats.completed}/${stats.exam_stats.total}`, icon: TrendingUp, bg: 'rgba(245,158,11,0.1)', color: '#f59e0b' },
         ].map((s, i) => {
           const Icon = s.icon;
           return (
@@ -63,26 +96,40 @@ export default function Progress() {
             Progression par matière
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {subjects.map(s => (
-              <div key={s.name}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.65rem' }}>
-                  <span style={{ fontSize: '1.5rem' }}>{s.emoji}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.4rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{s.name}</span>
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.quizzes} quiz</span>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Moy: <strong style={{ color: s.color }}>{s.score}%</strong></span>
-                        <span style={{ fontWeight: 800, fontSize: '0.9rem', color: s.color }}>{s.progress}%</span>
+            {stats.subject_stats && stats.subject_stats.length > 0 ? (
+              stats.subject_stats.map(s => {
+                const color = subjectColor[s.name] || '#667eea';
+                const emoji = s.name.includes('Math') ? '📘' : s.name.includes('Phy') ? '⚛️' : s.name.includes('Nat') ? '🌿' : '📄';
+                const totalItems = s.quizzes + s.exercises_done + s.exams_done;
+                // mock subject progress: if they start doing things, let's bump it
+                const approxProg = Math.min(100, (s.quizzes * 5) + (s.exercises_done * 2) + (s.exams_done * 10));
+
+                return (
+                  <div key={s.name}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.65rem' }}>
+                      <span style={{ fontSize: '1.5rem' }}>{emoji}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.4rem' }}>
+                          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{s.name}</span>
+                          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.quizzes} quiz</span>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Moy: <strong style={{ color }}>{s.score}%</strong></span>
+                            <span style={{ fontWeight: 800, fontSize: '0.9rem', color }}>{approxProg}%</span>
+                          </div>
+                        </div>
+                        <div className="progress-track progress-track-lg">
+                          <div className="progress-fill" style={{ width: `${approxProg}%`, background: `linear-gradient(90deg, ${color}, ${color}dd)` }} />
+                        </div>
                       </div>
                     </div>
-                    <div className="progress-track progress-track-lg">
-                      <div className="progress-fill" style={{ width: `${s.progress}%`, background: s.gradient }} />
-                    </div>
                   </div>
-                </div>
+                );
+              })
+            ) : (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                Commencez des exercices ou des quiz pour voir votre progression ici.
               </div>
-            ))}
+            )}
           </div>
 
           {/* Global ring */}
@@ -93,11 +140,11 @@ export default function Progress() {
             background: 'rgba(79,122,248,0.05)',
             border: '1px solid rgba(79,122,248,0.12)',
           }}>
-            <ProgressRing percent={75} size={90} strokeWidth={10} color="#6366f1" label="75%" sublabel="global" />
+            <ProgressRing percent={globalProgress} size={90} strokeWidth={10} color="#6366f1" label={`${globalProgress}%`} sublabel="global" />
             <div>
-              <p style={{ fontWeight: 800, fontSize: '1.05rem', marginBottom: '0.25rem' }}>Progression globale : 75%</p>
+              <p style={{ fontWeight: 800, fontSize: '1.05rem', marginBottom: '0.25rem' }}>Progression globale : {globalProgress}%</p>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                À ce rythme, vous serez prêt pour le Bac. Continuez à maintenir 3h de révision par jour.
+                Basé sur les quiz, exercices et annales complétés. Continuez vos efforts !
               </p>
             </div>
           </div>
@@ -143,6 +190,6 @@ export default function Progress() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

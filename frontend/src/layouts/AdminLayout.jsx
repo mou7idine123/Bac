@@ -1,9 +1,9 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  BarChart2, Users, BookOpen, Layers, FileText, 
-  HelpCircle, Copy, LogOut, Settings, Award 
+import {
+  BarChart2, Users, BookOpen, Layers, FileText,
+  HelpCircle, Copy, LogOut, Settings, Award, Cpu, ArrowUpRight, FileEdit
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -21,22 +21,23 @@ export default function AdminLayout() {
     { isDivider: true, label: 'Contenu' },
     { path: '/admin/subjects', icon: BookOpen, label: 'Matières' },
     { path: '/admin/chapters', icon: Layers, label: 'Chapitres' },
+    { path: '/admin/resumes', icon: FileEdit, label: 'Résumés' },
     { path: '/admin/courses', icon: FileText, label: 'Cours' },
     { path: '/admin/sheets', icon: Copy, label: 'Fiches Révision' },
+    { path: '/admin/exams', icon: Layers, label: 'Annales (Examens)' },
     { isDivider: true, label: 'Évaluation' },
     { path: '/admin/exercises', icon: HelpCircle, label: 'Exercices' },
-    { path: '/admin/quizzes', icon: Award, label: 'Quiz & QCM' },
-    { path: '/admin/annales', icon: FileText, label: 'Annales' },
+    { path: '/admin/quizzes', icon: Award, label: 'QCM' },
     { isDivider: true, label: 'Configuration' },
     { path: '/admin/settings', icon: Settings, label: 'Paramètres' },
   ];
 
   return (
     <div className="admin-wrapper" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-sans)' }}>
-      
+
       {/* SIDEBAR SOMBRE TYPE LINEAR/VERCEL */}
-      <aside style={{ 
-        width: '260px', background: '#0f172a', color: '#cbd5e1', 
+      <aside style={{
+        width: '260px', background: '#0f172a', color: '#cbd5e1',
         display: 'flex', flexDirection: 'column', flexShrink: 0,
         borderRight: '1px solid #1e293b'
       }}>
@@ -66,7 +67,7 @@ export default function AdminLayout() {
                     end={item.exact}
                     className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}
                     style={({ isActive }) => ({
-                      display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem', 
+                      display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem',
                       borderRadius: '6px', fontSize: '0.85rem', fontWeight: 500,
                       color: isActive ? 'white' : '#94a3b8',
                       background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
@@ -74,7 +75,7 @@ export default function AdminLayout() {
                       borderColor: isActive ? 'rgba(255,255,255,0.1)' : 'transparent'
                     })}
                   >
-                    <Icon size={16} style={{ color: item.path === '/admin' ? (true/*isActive*/ ? '#60a5fa' : '#64748b') : 'inherit' }} />
+                    <Icon size={16} />
                     {item.label}
                   </NavLink>
                 </li>
@@ -84,49 +85,59 @@ export default function AdminLayout() {
         </nav>
 
         <div style={{ padding: '1rem', borderTop: '1px solid #1e293b' }}>
-           <button 
-             onClick={handleLogout}
-             style={{ 
-               width: '100%', display: 'flex', alignItems: 'center', gap: '0.75rem', 
-               padding: '0.6rem 0.75rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 500,
-               color: '#f87171', background: 'transparent', border: '1px solid transparent', cursor: 'pointer', transition: '0.2s' 
-             }}
-             onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(248, 113, 113, 0.1)'; }}
-             onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; }}
-           >
-             <LogOut size={16} />
-             Déconnexion Admin
-           </button>
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '0.75rem',
+              padding: '0.6rem 0.75rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 500,
+              color: '#f87171', background: 'transparent', border: '1px solid transparent', cursor: 'pointer', transition: '0.2s'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(248, 113, 113, 0.1)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          >
+            <LogOut size={16} />
+            Déconnexion Admin
+          </button>
         </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        
+
         {/* TOPBAR */}
-        <header style={{ 
-            height: '64px', background: 'white', borderBottom: '1px solid #e2e8f0',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', flexShrink: 0
+        <header style={{
+          height: '64px', background: 'white', borderBottom: '1px solid #e2e8f0',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', flexShrink: 0
         }}>
-            <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>
-                Espace <span style={{ color: '#0f172a', fontWeight: 600 }}>Administrateur</span>
+          <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>
+            Espace <span style={{ color: '#0f172a', fontWeight: 600 }}>Administrateur</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem', background: '#f1f5f9', borderRadius: '20px' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }}></div>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155' }}>Système Opérationnel</span>
             </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem', background: '#f1f5f9', borderRadius: '20px' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }}></div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155' }}>Système Opérationnel</span>
-                </div>
-                <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#6366f1', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700 }}>
-                    {user?.name?.charAt(0) || 'A'}
-                </div>
+            <button
+              onClick={() => navigate('/')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.75rem',
+                background: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '20px',
+                fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer'
+              }}
+            >
+              Dashboard Élève <ArrowUpRight size={14} />
+            </button>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#6366f1', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700 }}>
+              {user?.name?.charAt(0) || 'A'}
             </div>
+          </div>
         </header>
 
         {/* PAGE CONTENT */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '2rem' }}>
           <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-             <Outlet />
+            <Outlet />
           </div>
         </div>
 

@@ -2,18 +2,20 @@ import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, BookOpen, CheckSquare, FileText,
-  BarChart2, MessageSquare, Calendar, LogOut, Sparkles,
+  BarChart2, MessageSquare, Calendar, LogOut, Sparkles, BookMarked,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
-  { path: '/',          label: 'Dashboard',     icon: LayoutDashboard },
-  { path: '/courses',   label: 'Cours',         icon: BookOpen },
-  { path: '/quizzes',   label: 'Exercices',     icon: CheckSquare },
-  { path: '/exams',     label: 'Annales',       icon: FileText },
-  { path: '/assistant', label: 'Assistant IA',  icon: MessageSquare, badge: 'IA' },
-  { path: '/planning',  label: 'Planning',      icon: Calendar },
-  { path: '/progress',  label: 'Statistiques',  icon: BarChart2 },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/courses', label: 'Cours', icon: BookOpen },
+  { path: '/summaries', label: 'Résumés', icon: BookMarked },
+  { path: '/sheets', label: 'Fiches', icon: FileText },
+  { path: '/exercises', label: 'Exercices', icon: CheckSquare },
+  { path: '/quizzes', label: 'QCM', icon: CheckSquare },
+  { path: '/exams', label: 'Annales', icon: FileText },
+  { path: '/assistant', label: 'Assistant IA', icon: MessageSquare, badge: 'IA' },
+  { path: '/planning', label: 'Planning', icon: Calendar },
 ];
 
 // Badge couleur par série
@@ -36,15 +38,15 @@ export default function Sidebar() {
     : '?';
 
   const fullName = user ? `${user.first_name} ${user.last_name}` : 'Utilisateur';
-  const series   = user?.series ?? 'C';
-  const badge    = seriesBadge[series] ?? seriesBadge.C;
+  const series = user?.series ?? 'C';
+  const badge = seriesBadge[series] ?? seriesBadge.C;
 
   return (
     <aside className="sidebar">
       {/* Logo */}
-      <Link to="/" className="sidebar-logo" style={{ textDecoration:'none' }}>
+      <Link to="/" className="sidebar-logo" style={{ textDecoration: 'none' }}>
         <div className="sidebar-logo-icon">
-          <span style={{ fontFamily:'var(--font-display)', fontWeight:900, fontSize:'0.9rem' }}>S3C</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '0.9rem' }}>S3C</span>
         </div>
         <div>
           <div className="sidebar-logo-name">PrepBac</div>
@@ -64,7 +66,7 @@ export default function Sidebar() {
                 className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
               >
                 <span className="nav-icon"><Icon size={17} /></span>
-                <span style={{ flex:1 }}>{label}</span>
+                <span style={{ flex: 1 }}>{label}</span>
                 {b && <span className="nav-badge">{b}</span>}
               </NavLink>
             </li>
@@ -76,7 +78,7 @@ export default function Sidebar() {
       <div className="sidebar-bottom">
         <button
           className="nav-link btn-danger-ghost"
-          style={{ width:'100%', marginBottom:'0.4rem' }}
+          style={{ width: '100%', marginBottom: '0.4rem' }}
           onClick={handleLogout}
         >
           <span className="nav-icon"><LogOut size={17} /></span>
@@ -86,12 +88,12 @@ export default function Sidebar() {
         {/* User profile card */}
         <div className="sidebar-profile" style={{ cursor: 'default' }}>
           <div className="sidebar-profile-avatar">{initials}</div>
-          <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div className="sidebar-profile-name">{fullName}</div>
-            <div style={{ display:'flex', alignItems:'center', gap:'0.3rem', marginTop:2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: 2 }}>
               <span style={{
-                fontSize:'0.65rem', fontWeight:700, padding:'1px 6px',
-                borderRadius:'var(--r-full)',
+                fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px',
+                borderRadius: 'var(--r-full)',
                 background: badge.bg, color: badge.color,
               }}>
                 {badge.label}

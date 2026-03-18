@@ -4,14 +4,14 @@ import { API_BASE_URL } from '../apiConfig';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);   // initial check
-  const [error, setError]     = useState(null);
+  const [error, setError] = useState(null);
 
   // ─── Helpers ────────────────────────────────────────────────
-  const saveToken  = (t) => localStorage.setItem('bac_token', t);
-  const clearToken = ()  => localStorage.removeItem('bac_token');
-  const getToken   = ()  => localStorage.getItem('bac_token');
+  const saveToken = (t) => localStorage.setItem('bac_token', t);
+  const clearToken = () => localStorage.removeItem('bac_token');
+  const getToken = () => localStorage.getItem('bac_token');
 
   const authFetch = useCallback(async (endpoint, options = {}) => {
     const token = getToken();
@@ -33,8 +33,11 @@ export function AuthProvider({ children }) {
     authFetch('/auth/me')
       .then(r => r.json())
       .then(data => {
-        if (data.user) setUser(data.user);
-        else clearToken();
+        if (data.user) {
+          // Admins always see Série C content in student-facing pages
+          if (data.user.role === 'admin') data.user.series = 'C';
+          setUser(data.user);
+        } else clearToken();
       })
       .catch(() => clearToken())
       .finally(() => setLoading(false));
@@ -47,7 +50,7 @@ export function AuthProvider({ children }) {
       method: 'POST',
       body: JSON.stringify({
         first_name: firstName,
-        last_name:  lastName,
+        last_name: lastName,
         email,
         password,
         series,
@@ -69,6 +72,7 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Identifiants invalides');
+    if (data.user?.role === 'admin') data.user.series = 'C';
     saveToken(data.token);
     setUser(data.user);
     return data.user;

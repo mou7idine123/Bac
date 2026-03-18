@@ -1,83 +1,79 @@
-import React, { useState } from 'react';
-import { Book, FileText, ChevronDown, ChevronRight, Play, Download, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Book, FileText, CheckCircle, BookOpen, Download, ExternalLink, Link as LinkIcon, Sparkles, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../apiConfig';
+import PdfModal from '../components/PdfModal';
 
-// Cours par série
-const coursesBySeries = {
-  C: [
-    {
-      id: 1, name:'Mathématiques', emoji:'📘',
-      color:'#667eea', bg:'rgba(102,126,234,0.1)',
-      gradient:'linear-gradient(135deg,#667eea,#764ba2)',
-      chapters:[
-        { id:101, title:'Limites et Continuité',      lessons:5, progress:100, sheet:true  },
-        { id:102, title:'Dérivabilité et Primitives', lessons:4, progress:75,  sheet:true  },
-        { id:103, title:'Intégrales',                 lessons:5, progress:40,  sheet:false },
-        { id:104, title:'Fonctions Logarithmes',      lessons:6, progress:20,  sheet:false },
-      ],
-    },
-    {
-      id: 2, name:'Physique', emoji:'⚛️',
-      color:'#f5576c', bg:'rgba(245,87,108,0.1)',
-      gradient:'linear-gradient(135deg,#f093fb,#f5576c)',
-      chapters:[
-        { id:201, title:'Cinématique',  lessons:3, progress:60, sheet:true  },
-        { id:202, title:'Dynamique',    lessons:4, progress:20, sheet:false },
-        { id:203, title:'Optique',      lessons:3, progress:0,  sheet:false },
-      ],
-    },
-    {
-      id: 3, name:'Chimie', emoji:'🧪',
-      color:'#4facfe', bg:'rgba(79,172,254,0.1)',
-      gradient:'linear-gradient(135deg,#4facfe,#00f2fe)',
-      chapters:[
-        { id:301, title:'Acide-Base',           lessons:4, progress:50, sheet:true  },
-        { id:302, title:'Réactions chimiques',  lessons:3, progress:15, sheet:false },
-      ],
-    },
-  ],
-  D: [
-    {
-      id: 1, name:'Mathématiques', emoji:'📘',
-      color:'#667eea', bg:'rgba(102,126,234,0.1)',
-      gradient:'linear-gradient(135deg,#667eea,#764ba2)',
-      chapters:[
-        { id:101, title:'Probabilités',    lessons:4, progress:70, sheet:true  },
-        { id:102, title:'Statistiques',    lessons:3, progress:45, sheet:false },
-        { id:103, title:'Géométrie',       lessons:5, progress:20, sheet:false },
-      ],
-    },
-    {
-      id: 2, name:'Sciences Naturelles', emoji:'🌿',
-      color:'#43e97b', bg:'rgba(67,233,123,0.1)',
-      gradient:'linear-gradient(135deg,#43e97b,#38f9d7)',
-      chapters:[
-        { id:201, title:'Génétique',      lessons:5, progress:85, sheet:true  },
-        { id:202, title:'Immunologie',    lessons:4, progress:50, sheet:true  },
-        { id:203, title:'Écologie',       lessons:3, progress:10, sheet:false },
-      ],
-    },
-    {
-      id: 3, name:'Physique', emoji:'⚛️',
-      color:'#f5576c', bg:'rgba(245,87,108,0.1)',
-      gradient:'linear-gradient(135deg,#f093fb,#f5576c)',
-      chapters:[
-        { id:301, title:'Mécanique',  lessons:4, progress:55, sheet:true  },
-        { id:302, title:'Optique',    lessons:3, progress:0,  sheet:false },
-      ],
-    },
-  ],
-};
+const BACKEND_URL = 'http://localhost:8000';
 
 export default function Courses() {
   const { user } = useAuth();
-  const series   = user?.series ?? 'C';
-  const subjects = coursesBySeries[series] ?? coursesBySeries.C;
+  const series = user?.series ?? 'C';
+  const navigate = useNavigate();
 
-  const [activeId, setActiveId]  = useState(subjects[0].id);
-  const [expanded, setExpanded]  = useState(null);
+  const [subjects, setSubjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeId, setActiveId] = useState(null);
+  const [expanded, setExpanded] = useState(null);
+  const [viewerPdf, setViewerPdf] = useState(null);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    fetchLibrary();
+  }, [series]);
+
+  const fetchLibrary = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('bac_token');
+      const res = await fetch(`${API_BASE_URL}/courses/library?series=${series}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.subjects && data.subjects.length > 0) {
+        setSubjects(data.subjects);
+        setActiveId(data.subjects[0].id);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const current = subjects.find(s => s.id === activeId) ?? subjects[0];
+
+  const handleLessonClick = async (lesson) => {
+    if (lesson.pdf_url) {
+      setViewerPdf({ url: lesson.pdf_url, title: lesson.title });
+      try {
+        const token = localStorage.getItem('bac_token');
+        await fetch(`${API_BASE_URL}/courses/lesson-progress`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ lesson_id: lesson.id, progress_percent: 100 })
+        });
+        fetchLibrary(); // Corrected from fetchSubjects
+      } catch (err) { }
+    } else {
+      navigate(`/courses/lesson/${lesson.id}`);
+    }
+  };
+
+
+  if (loading) {
+    return (
+      <div style={{ padding: '4rem', textAlign: 'center', color: '#64748b' }}>
+        <BookOpen size={40} style={{ marginBottom: '1rem', opacity: 0.4 }} />
+        <div>Chargement des cours...</div>
+      </div>
+    );
+  }
+
+  if (!subjects.length || !current) {
+    return <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>Aucun cours disponible pour la série {series}.</div>;
+  }
 
   return (
     <div>
@@ -90,90 +86,170 @@ export default function Courses() {
         </div>
       </div>
 
+      <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            placeholder="Rechercher une leçon ou un cours..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%', padding: '0.8rem 1rem 0.8rem 2.8rem', borderRadius: '14px', border: '1px solid var(--border-soft)', background: 'white', outline: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
+          />
+        </div>
+      </div>
+
       {/* Subject tabs */}
-      <div style={{ display:'flex', gap:'0.6rem', marginBottom:'1.5rem', flexWrap:'wrap' }}>
+      <div style={{ display: 'flex', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap', overflowX: 'auto', paddingBottom: '0.5rem' }}>
         {subjects.map(s => (
           <button
             key={s.id}
             onClick={() => { setActiveId(s.id); setExpanded(null); }}
+            className="anim-fade-in"
             style={{
-              display:'flex', alignItems:'center', gap:'0.5rem',
-              padding:'0.55rem 1.1rem', borderRadius:'var(--r-full)',
-              border:'none', cursor:'pointer', fontWeight:600, fontSize:'0.85rem',
-              transition:'var(--t)',
-              background: activeId === s.id ? s.gradient : 'var(--bg-glass-white)',
+              display: 'flex', alignItems: 'center', gap: '0.6rem',
+              padding: '0.65rem 1.25rem', borderRadius: '14px',
+              border: '1px solid transparent', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
+              transition: 'var(--t)',
+              background: activeId === s.id ? s.gradient : 'white',
               color: activeId === s.id ? 'white' : 'var(--text-secondary)',
-              boxShadow: activeId === s.id ? `0 4px 14px ${s.color}40` : 'var(--shadow-inset)',
-              backdropFilter:'blur(8px)',
-              border: activeId === s.id ? 'none' : '1px solid var(--border-glass)',
+              boxShadow: activeId === s.id ? `0 8px 20px ${s.color}40` : '0 4px 12px rgba(0,0,0,0.03)',
+              border: activeId === s.id ? 'none' : '1px solid #e2e8f0',
             }}
           >
-            <span>{s.emoji}</span>
+            <span style={{ fontSize: '1.1rem' }}>{s.emoji || '📚'}</span>
             {s.name}
             <span style={{
-              padding:'1px 6px', borderRadius:'var(--r-full)',
-              fontSize:'0.65rem', fontWeight:700,
-              background: activeId === s.id ? 'rgba(255,255,255,0.25)' : s.bg,
-              color: activeId === s.id ? 'white' : s.color,
-            }}>{s.chapters.length}</span>
+              padding: '2px 8px', borderRadius: 'var(--r-full)',
+              fontSize: '0.7rem', fontWeight: 800,
+              background: activeId === s.id ? 'rgba(255,255,255,0.25)' : s.bg || 'rgba(0,0,0,0.05)',
+              color: activeId === s.id ? 'white' : s.color || 'var(--text-muted)',
+            }}>{s.lessons?.length ?? 0}</span>
           </button>
         ))}
       </div>
 
-      {/* Chapters */}
-      <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-        {current.chapters.map((ch, idx) => (
-          <div key={ch.id} className="card" style={{ padding:0, overflow:'hidden', animationDelay:`${idx*50}ms` }}>
-            <div
-              style={{ display:'flex', alignItems:'center', gap:'1rem', padding:'1.1rem 1.25rem', cursor:'pointer' }}
-              onClick={() => setExpanded(expanded === ch.id ? null : ch.id)}
-            >
-              <div style={{ width:42, height:42, borderRadius:12, flexShrink:0, background:current.bg, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <Book size={20} style={{ color:current.color }} />
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:'0.6rem', marginBottom:'0.3rem' }}>
-                  <h3 style={{ fontWeight:700, fontSize:'0.95rem', color:'var(--text-primary)' }}>{ch.title}</h3>
-                  {ch.sheet && <span className="badge badge-green"><FileText size={10}/> Fiche</span>}
-                  {ch.progress === 100 && <span className="badge badge-blue">✓ Terminé</span>}
-                </div>
-                <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
-                  <div className="progress-track" style={{ flex:1, maxWidth:200 }}>
-                    <div className="progress-fill" style={{ width:`${ch.progress}%`, background:current.gradient }} />
-                  </div>
-                  <span style={{ fontSize:'0.75rem', fontWeight:700, color:current.color }}>{ch.progress}%</span>
-                  <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{ch.lessons} leçons</span>
-                </div>
-              </div>
-              <div style={{ color:'var(--text-muted)', flexShrink:0 }}>
-                {expanded === ch.id ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
-              </div>
-            </div>
+      {/* Lessons and Sheets */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-            {expanded === ch.id && (
-              <div style={{ borderTop:'1px solid var(--border-soft)', background:'rgba(238,241,248,0.4)', padding:'1rem 1.25rem', animation:'fadeUp 0.2s ease' }}>
-                <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem', marginBottom:'1rem' }}>
-                  {Array.from({ length:Math.min(ch.lessons,4) },(_,i)=>(
-                    <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.65rem 0.9rem', borderRadius:'var(--r-md)', background:'white', border:'1px solid var(--border-soft)', cursor:'pointer', transition:'var(--t)' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:'0.6rem' }}>
-                        <Play size={13} style={{ color:current.color }}/>
-                        <span style={{ fontSize:'0.875rem', fontWeight:500 }}>Leçon {i+1} : Introduction & Définitions</span>
-                      </div>
-                      <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>15 min</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display:'flex', gap:'0.75rem', flexWrap:'wrap' }}>
-                  {ch.sheet && <button className="btn btn-glass btn-sm"><Download size={13}/> Fiche PDF</button>}
-                  <button className="btn btn-glass btn-sm" style={{ color:'var(--ai-color)' }}>
-                    <Sparkles size={13}/> Demander à l'IA
-                  </button>
-                </div>
+        {/* Lessons Section */}
+        <section>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+            <div style={{ width: 8, height: 28, background: current.gradient, borderRadius: '4px' }}></div>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>📚 Leçons & Cours</h2>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+            {current.lessons.filter(l => l.title.toLowerCase().includes(search.toLowerCase())).length === 0 ? (
+              <div className="card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', gridColumn: '1/-1' }}>
+                Aucune leçon trouvée pour "{search}".
               </div>
+            ) : (
+              current.lessons.filter(l => l.title.toLowerCase().includes(search.toLowerCase())).map((lesson, idx) => {
+                const lessonProgress = (lesson.progress || 0);
+                return (
+                  <div key={lesson.id}
+                    style={{
+                      display: 'flex', flexDirection: 'column', padding: '1.25rem',
+                      background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.03)', position: 'relative', overflow: 'hidden',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 25px rgba(0,0,0,0.06)'; }}
+                    onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.03)'; }}
+                  >
+                    {/* Inner Progress Bar */}
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, height: '4px', width: `${lessonProgress}%`, background: current.gradient, opacity: 0.6 }}></div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1rem' }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0, background: current.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <FileText size={22} style={{ color: current.color }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                          <h3 style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {lesson.title}
+                          </h3>
+                          {lessonProgress === 100 && <CheckCircle size={14} style={{ color: '#22c55e' }} />}
+                        </div>
+                        {lesson.description && (
+                          <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {lesson.description}
+                          </div>
+                        )}
+                        {lessonProgress > 0 && (
+                          <div style={{ marginTop: '0.4rem' }}>
+                            <span className="badge" style={{ background: lessonProgress === 100 ? '#d1fae5' : '#e0e7ff', color: lessonProgress === 100 ? '#059669' : '#4f46e5', fontSize: '0.7rem' }}>{lessonProgress}% complété</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+                      <button onClick={(e) => { e.stopPropagation(); handleLessonClick(lesson); }} style={{ flex: 1, padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', borderRadius: '8px', border: 'none', background: current.bg, color: current.color, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'var(--t)' }} onMouseOver={e => e.currentTarget.style.filter = 'brightness(0.95)'} onMouseOut={e => e.currentTarget.style.filter = 'none'}>
+                        <BookOpen size={16} /> Lire
+                      </button>
+                      {lesson.pdf_url && (
+                        <button onClick={(e) => {
+                          e.stopPropagation();
+                          const link = document.createElement('a');
+                          link.href = `${BACKEND_URL}${lesson.pdf_url}`;
+                          link.target = '_blank';
+                          link.download = lesson.title + '.pdf';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }} style={{ flex: 1, padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#475569', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'var(--t)' }} onMouseOver={e => e.currentTarget.style.background = '#f8fafc'} onMouseOut={e => e.currentTarget.style.background = 'white'}>
+                          <Download size={16} /> Télécharger
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
-        ))}
+        </section>
+
+        {/* Revision Sheets Section */}
+        {current.sheets && current.sheets.length > 0 && (
+          <section>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+              <div style={{ width: 8, height: 28, background: 'linear-gradient(135deg, #f59e0b, #d97706)', borderRadius: '4px' }}></div>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>📋 Fiches de révision</h2>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+              {current.sheets.map((sheet) => (
+                <div key={sheet.id} className="card" onClick={() => sheet.pdf_url && window.open(`${BACKEND_URL}${sheet.pdf_url}`, '_blank')}
+                  style={{
+                    padding: '1.25rem', cursor: 'pointer', transition: 'var(--t)',
+                    border: '1px solid var(--border-soft)', display: 'flex', alignItems: 'center', gap: '1rem'
+                  }}
+                  onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'}
+                  onMouseOut={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0, background: 'rgba(245, 158, 11, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Sparkles size={22} style={{ color: '#d97706' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', margin: 0 }}>{sheet.title}</h3>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>Résumé & Essentiel</p>
+                  </div>
+                  <ExternalLink size={16} style={{ color: 'var(--text-muted)' }} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
+
+      {viewerPdf && (
+        <PdfModal
+          url={viewerPdf.url}
+          title={viewerPdf.title}
+          onClose={() => setViewerPdf(null)}
+        />
+      )}
     </div>
   );
 }

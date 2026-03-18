@@ -1,35 +1,14 @@
-import React, { useState } from 'react';
-import { Clock, CheckSquare, Award, Play, X, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Clock, CheckSquare, Award, Play, X, ChevronRight, FileSearch, Search, CheckCircle, Circle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const quizzes = [
-  { id: 1, title: 'Limites et Continuité', subject: 'Mathématiques', emoji: '📘', difficulty: 'Moyen',    time: 20, questions: 10, gradient: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#667eea' },
-  { id: 2, title: 'Cinématique',           subject: 'Physique',       emoji: '⚛️',  difficulty: 'Difficile', time: 30, questions: 15, gradient: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#f5576c' },
-  { id: 3, title: 'La Mitose',             subject: 'Sciences Nat',   emoji: '🌿',  difficulty: 'Facile',    time: 10, questions: 8,  gradient: 'linear-gradient(135deg,#4facfe,#00f2fe)', color: '#4facfe' },
-  { id: 4, title: 'Fonctions Logarithmes', subject: 'Mathématiques',  emoji: '📘',  difficulty: 'Difficile', time: 25, questions: 12, gradient: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#667eea' },
-  { id: 5, title: 'Optique Géométrique',   subject: 'Physique',       emoji: '⚛️',  difficulty: 'Moyen',    time: 20, questions: 10, gradient: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#f5576c' },
-  { id: 6, title: 'Génétique Mendélienne', subject: 'Sciences Nat',   emoji: '🌿',  difficulty: 'Facile',    time: 15, questions: 10, gradient: 'linear-gradient(135deg,#4facfe,#00f2fe)', color: '#4facfe' },
-];
+import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../apiConfig';
 
 const difficultyConfig = {
-  'Facile':    { color: '#16a34a', bg: 'rgba(46,213,115,0.12)' },
-  'Moyen':     { color: '#ca8a04', bg: 'rgba(255,165,2,0.12)' },
-  'Difficile': { color: '#dc2626', bg: 'rgba(255,71,87,0.12)' },
+  'easy': { color: '#16a34a', bg: 'rgba(46,213,115,0.12)', label: 'Facile' },
+  'medium': { color: '#ca8a04', bg: 'rgba(255,165,2,0.12)', label: 'Moyen' },
+  'hard': { color: '#dc2626', bg: 'rgba(255,71,87,0.12)', label: 'Difficile' },
 };
-
-// Mini Quiz Session
-const sampleQuestions = [
-  {
-    text: 'Quelle est la limite de (sin x)/x quand x → 0 ?',
-    options: ['0', '∞', '1', 'Non définie'],
-    correct: 2,
-  },
-  {
-    text: 'La dérivée de ln(x) est :',
-    options: ['x', '1/x', 'ln(x)', '1'],
-    correct: 1,
-  },
-];
 
 function QuizSession({ quiz, onClose }) {
   const [current, setCurrent] = useState(0);
@@ -38,15 +17,16 @@ function QuizSession({ quiz, onClose }) {
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
 
-  const q = sampleQuestions[current];
-  const total = sampleQuestions.length;
+  const questions = quiz.questions || [];
+  const q = questions[current];
+  const total = questions.length;
   const progress = ((current) / total) * 100;
 
   const handleSelect = (idx) => {
     if (answered) return;
     setSelected(idx);
     setAnswered(true);
-    if (idx === q.correct) setScore(s => s + 1);
+    if (q.answers[idx].is_correct === 1) setScore(s => s + 1);
   };
 
   const handleNext = () => {
@@ -56,6 +36,8 @@ function QuizSession({ quiz, onClose }) {
     setAnswered(false);
   };
 
+  if (!q) return null;
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 100,
@@ -63,30 +45,28 @@ function QuizSession({ quiz, onClose }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
     }}>
       <div className="card anim-scale-in" style={{ width: '100%', maxWidth: 560, padding: '2rem' }}>
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <div>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-              {quiz.subject} · Question {current + 1}/{total}
+              Question {current + 1}/{total}
             </div>
             <h3 style={{ fontWeight: 800, fontSize: '1.05rem', fontFamily: 'var(--font-display)' }}>{quiz.title}</h3>
           </div>
           <button className="btn btn-glass btn-icon" onClick={onClose}><X size={18} /></button>
         </div>
 
-        {/* Progress */}
         <div className="progress-track progress-track-lg" style={{ marginBottom: '1.5rem' }}>
-          <div className="progress-fill" style={{ width: `${progress}%`, background: quiz.gradient, transition: 'width 0.5s ease' }} />
+          <div className="progress-fill" style={{ width: `${progress}%`, background: 'var(--primary)', transition: 'width 0.5s ease' }} />
         </div>
 
         {!done ? (
           <>
-            <p style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '1.25rem', lineHeight: 1.5 }}>{q.text}</p>
+            <p style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '1.25rem', lineHeight: 1.5 }}>{q.question_text}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '1.5rem' }}>
-              {q.options.map((opt, i) => (
+              {q.answers.map((opt, i) => (
                 <button
                   key={i}
-                  className={`option-btn${selected === i ? (i === q.correct ? ' correct' : ' wrong') : ''}${answered && i === q.correct && selected !== i ? ' correct' : ''}`}
+                  className={`option-btn${selected === i ? (opt.is_correct === 1 ? ' correct' : ' wrong') : ''}${answered && opt.is_correct === 1 && selected !== i ? ' correct' : ''}`}
                   onClick={() => handleSelect(i)}
                 >
                   <span style={{
@@ -96,7 +76,7 @@ function QuizSession({ quiz, onClose }) {
                   }}>
                     {String.fromCharCode(65 + i)}
                   </span>
-                  {opt}
+                  {opt.answer_text}
                 </button>
               ))}
             </div>
@@ -130,96 +110,229 @@ function QuizSession({ quiz, onClose }) {
 }
 
 export default function Quizzes() {
+  const { user } = useAuth();
+  const series = user?.series ?? 'C';
+
+  const [quizzes, setQuizzes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeSession, setActiveSession] = useState(null);
+  const [search, setSearch] = useState('');
+  const [filterSubject, setFilterSubject] = useState('Tous');
+  const [availableSubjects, setAvailableSubjects] = useState(['Tous']);
+
+  useEffect(() => { fetchQuizzes(); }, [series]);
+
+  const fetchQuizzes = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('bac_token');
+      const res = await fetch(`${API_BASE_URL}/courses/quizzes?series=${series}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setQuizzes(data.quizzes);
+        const subjectsList = ['Tous', ...new Set(data.quizzes.map(q => q.subject))].sort();
+        setAvailableSubjects(subjectsList);
+      }
+      else setQuizzes([]);
+    } catch (err) { console.error('QCM fetch error:', err); } finally { setLoading(false); }
+  };
+
+  const toggleQuizDone = async (e, quiz) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem('bac_token');
+      const newStatus = quiz.is_completed ? 'not_started' : 'completed';
+
+      const res = await fetch(`${API_BASE_URL}/progress/quiz`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ quiz_id: quiz.id, status: newStatus })
+      });
+      if (res.ok) {
+        setQuizzes(prev => prev.map(item => item.id === quiz.id ? { ...item, is_completed: newStatus === 'completed' } : item));
+      }
+    } catch (err) { console.error('Erreur progression quiz', err); }
+  };
+
+  const startQuiz = async (id) => {
+    try {
+      const token = localStorage.getItem('bac_token');
+      const res = await fetch(`${API_BASE_URL}/courses/quizzes?id=${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setActiveSession(data.quiz);
+      else alert('Erreur: ' + (data.error || 'Introuvable'));
+    } catch (err) { alert('Erreur chargement quiz'); }
+  };
 
   return (
     <div>
       <div className="page-hero">
         <div>
-          <h1 className="page-title">Quiz & Exercices</h1>
-          <p className="page-subtitle">Testez vos connaissances. Progressez chaque jour.</p>
+          <h1 className="page-title">QCM & Auto-évaluation</h1>
+          <p className="page-subtitle">Testez vos connaissances en temps réel · Série {series}</p>
         </div>
       </div>
 
-      {/* Quiz grid */}
-      <div className="grid stagger anim-fade-up" style={{ gridTemplateColumns: 'repeat(3,1fr)', gap: '1rem', marginBottom: '2rem' }}>
-        {quizzes.map(quiz => {
-          const diff = difficultyConfig[quiz.difficulty];
-          return (
-            <div key={quiz.id} className="card card-hover" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
-              {/* Gradient top bar */}
-              <div style={{ height: 4, background: quiz.gradient }} />
-              <div style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                  <div style={{
-                    fontSize: '2rem', width: 46, height: 46, borderRadius: 12,
-                    background: `${quiz.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{quiz.emoji}</div>
-                  <span style={{
-                    padding: '0.25rem 0.65rem', borderRadius: 'var(--r-full)',
-                    fontSize: '0.7rem', fontWeight: 700,
-                    background: diff.bg, color: diff.color,
-                  }}>{quiz.difficulty}</span>
-                </div>
-                <div style={{ marginBottom: '0.35rem' }}>
-                  <span style={{ fontSize: '0.72rem', color: quiz.color, fontWeight: 700 }}>{quiz.subject}</span>
-                </div>
-                <h3 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.85rem', lineHeight: 1.35 }}>{quiz.title}</h3>
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.1rem', borderTop: '1px solid var(--border-soft)', paddingTop: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    <Clock size={13} /> {quiz.time} min
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    <CheckSquare size={13} /> {quiz.questions} questions
-                  </div>
-                </div>
-                <button
-                  className="btn btn-primary"
-                  style={{ width: '100%', justifyContent: 'center' }}
-                  onClick={() => setActiveSession(quiz)}
-                >
-                  <Play size={15} /> Démarrer
-                </button>
-              </div>
-            </div>
-          );
-        })}
+      <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            placeholder="Rechercher un QCM..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%', padding: '0.8rem 1rem 0.8rem 2.8rem', borderRadius: '14px', border: '1px solid var(--border-soft)', background: 'white', outline: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
+          />
+        </div>
+        <select
+          value={filterSubject}
+          onChange={e => setFilterSubject(e.target.value)}
+          style={{ padding: '0.8rem 1rem', borderRadius: '14px', border: '1px solid var(--border-soft)', background: 'white', outline: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', minWidth: 200 }}
+        >
+          {availableSubjects.map(s => <option key={s} value={s}>{s === 'Tous' ? 'Toutes les matières' : s}</option>)}
+        </select>
       </div>
+
+      {loading ? (
+        <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <FileSearch size={40} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+          <div>Chargement des quiz...</div>
+        </div>
+      ) : (
+        <div className="grid stagger anim-fade-up" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+          {quizzes.length === 0 ? (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '3rem', background: 'white', borderRadius: '16px', border: '1px solid var(--border-soft)', color: 'var(--text-muted)' }}>
+              Aucun QCM disponible pour le moment.
+            </div>
+          ) : (
+            quizzes.filter(q => {
+              const matchSubject = filterSubject === 'Tous' || q.subject === filterSubject;
+              const matchSearch = q.title.toLowerCase().includes(search.toLowerCase());
+              return matchSubject && matchSearch;
+            }).map(quiz => {
+              const diff = difficultyConfig[quiz.difficulty] || difficultyConfig.medium;
+              const accentColor = '#8b5cf6';
+
+              return (
+                <div key={quiz.id} className="card card-hover" style={{ padding: 0, overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ height: 4, background: `linear-gradient(90deg, ${accentColor}, #d946ef)` }} />
+                  <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                      <div style={{
+                        fontSize: '1.5rem', width: 44, height: 44, borderRadius: 12,
+                        background: `${accentColor}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: accentColor
+                      }}>🏆</div>
+                      <span style={{
+                        padding: '0.25rem 0.65rem', borderRadius: 'var(--r-full)',
+                        fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase',
+                        background: diff.bg, color: diff.color,
+                      }}>{diff.label}</span>
+                    </div>
+                    <div style={{ marginBottom: '0.35rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: accentColor, fontWeight: 800 }}>{quiz.subject}</span>
+                    </div>
+                    <h3 style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '1rem', lineHeight: 1.4, color: 'var(--text-primary)' }}>{quiz.title}</h3>
+
+                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderTop: '1px solid var(--border-soft)', paddingTop: '0.85rem', marginTop: 'auto' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        <Clock size={14} /> {quiz.time_limit_minutes} min
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        <CheckSquare size={14} /> {quiz.questions_count} questions
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: 'auto' }}>
+                      <button
+                        className="btn btn-primary"
+                        style={{ flex: 1, justifyContent: 'center', background: `linear-gradient(135deg, ${accentColor}, #7c3aed)` }}
+                        onClick={() => startQuiz(quiz.id)}
+                      >
+                        <Play size={15} /> Démarrer
+                      </button>
+                      <button
+                        onClick={(e) => toggleQuizDone(e, quiz)}
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.4rem',
+                          padding: '0.65rem 1rem',
+                          borderRadius: '12px',
+                          fontSize: '0.85rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          border: 'none',
+                          background: quiz.is_completed
+                            ? 'linear-gradient(135deg, #10b981, #059669)'
+                            : 'rgba(243, 244, 246, 0.7)',
+                          color: quiz.is_completed ? 'white' : '#6b7280',
+                          boxShadow: quiz.is_completed
+                            ? '0 4px 12px rgba(16, 185, 129, 0.25)'
+                            : 'none',
+                          transform: quiz.is_completed ? 'scale(1.02)' : 'scale(1)',
+                        }}
+                        onMouseOver={(e) => {
+                          if (!quiz.is_completed) e.currentTarget.style.background = 'rgba(229, 231, 235, 0.9)';
+                          e.currentTarget.style.transform = 'translateY(-1px) scale(1.02)';
+                        }}
+                        onMouseOut={(e) => {
+                          if (!quiz.is_completed) e.currentTarget.style.background = 'rgba(243, 244, 246, 0.7)';
+                          e.currentTarget.style.transform = quiz.is_completed ? 'scale(1.02)' : 'scale(1)';
+                        }}
+                      >
+                        {quiz.is_completed ? (
+                          <>
+                            <CheckCircle size={16} fill="rgba(255,255,255,0.2)" />
+                            <span>Validé</span>
+                          </>
+                        ) : (
+                          <>
+                            <Circle size={16} />
+                            <span>Marquer fait</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* Exam simulation banner */}
       <div style={{
-        background: 'linear-gradient(135deg, #4f7af8 0%, #764ba2 60%, #f093fb 100%)',
-        borderRadius: 'var(--r-xl)', padding: '2rem 2.5rem',
+        background: 'linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)',
+        borderRadius: '20px', padding: '2.5rem',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem',
-        boxShadow: '0 8px 32px rgba(79,122,248,0.3)',
-        position: 'relative', overflow: 'hidden',
+        boxShadow: '0 10px 30px rgba(139, 92, 246, 0.25)',
+        color: 'white'
       }}>
-        <div style={{
-          position: 'absolute', top: -40, right: -40,
-          width: 200, height: 200, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.07)',
-        }} />
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.5rem' }}>
-            <Award size={22} color="white" />
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.35rem', fontWeight: 800, color: 'white' }}>
-              Simulation Examen Blanc
-            </h2>
-          </div>
-          <p style={{ color: 'rgba(255,255,255,0.8)', maxWidth: 500, fontSize: '0.9rem', lineHeight: 1.55 }}>
-            Passez un examen complet en conditions réelles, généré à partir des annales du Bac mauritanien.
+        <div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.35rem', fontWeight: 800, marginBottom: '0.5rem' }}>
+            Prêt pour l'Examen ?
+          </h2>
+          <p style={{ opacity: 0.9, maxWidth: 500, fontSize: '0.9rem', lineHeight: 1.55 }}>
+            Nos QCM sont conçus pour refléter la difficulté réelle du baccalauréat mauritanien. Testez-vous régulièrement pour identifier vos points faibles.
           </p>
         </div>
-        <button className="btn" style={{
-          background: 'white', color: '#4f7af8', fontWeight: 700,
-          padding: '0.75rem 1.75rem', borderRadius: 'var(--r-full)',
-          flexShrink: 0, boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+        <button style={{
+          background: 'white', color: '#8b5cf6', fontWeight: 800,
+          padding: '0.8rem 1.8rem', borderRadius: '12px', border: 'none',
+          cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
         }}>
-          Lancer une simulation
+          Simuler Bac complet
         </button>
       </div>
 
-      {/* Quiz session modal */}
       {activeSession && <QuizSession quiz={activeSession} onClose={() => setActiveSession(null)} />}
     </div>
   );
