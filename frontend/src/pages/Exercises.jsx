@@ -3,7 +3,7 @@ import { Clock, CheckSquare, Award, Play, X, ChevronRight, FileSearch, BookOpen,
 import { Link } from 'react-router-dom';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth } from '../context/AuthContext';
-import PdfModal from '../components/PdfModal';
+import FileViewer from '../components/FileViewer';
 
 const BACKEND_URL = 'http://localhost:8000';
 
@@ -30,7 +30,7 @@ export default function Exercises() {
     setLoading(true);
     try {
       const token = localStorage.getItem('bac_token');
-      const res = await fetch(`${API_BASE_URL}/admin/exercises?series=${series}`, {
+      const res = await fetch(`${API_BASE_URL}/courses/exercises?series=${series}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -229,9 +229,8 @@ export default function Exercises() {
       </div>
 
       {viewerPdf && (
-        <PdfModal
-          url={viewerPdf.url}
-          title={viewerPdf.title}
+        <FileViewer
+          file={{ nom: viewerPdf.title, chemin_fichier: viewerPdf.url }}
           onClose={() => setViewerPdf(null)}
         />
       )}

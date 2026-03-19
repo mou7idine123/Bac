@@ -74,34 +74,7 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      {/* Bottom */}
-      <div className="sidebar-bottom">
-        <button
-          className="nav-link btn-danger-ghost"
-          style={{ width: '100%', marginBottom: '0.4rem' }}
-          onClick={handleLogout}
-        >
-          <span className="nav-icon"><LogOut size={17} /></span>
-          <span>Déconnexion</span>
-        </button>
 
-        {/* User profile card */}
-        <div className="sidebar-profile" style={{ cursor: 'default' }}>
-          <div className="sidebar-profile-avatar">{initials}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="sidebar-profile-name">{fullName}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: 2 }}>
-              <span style={{
-                fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px',
-                borderRadius: 'var(--r-full)',
-                background: badge.bg, color: badge.color,
-              }}>
-                {badge.label}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 }

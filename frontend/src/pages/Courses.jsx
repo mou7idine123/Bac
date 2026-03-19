@@ -1,44 +1,95 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, FileText, CheckCircle, Download, Search, ChevronDown, BookMarked } from 'lucide-react';
+import {
+  BookOpen, FileText, CheckCircle, Download,
+  Search, ChevronRight, ChevronLeft, Loader2,
+  AlertCircle
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../apiConfig';
-import PdfModal from '../components/PdfModal';
+import FileViewer from '../components/FileViewer';
 
 const BACKEND_URL = 'http://localhost:8000';
 
+// Gradient palette for subject cards
+const GRADIENTS = [
+  'linear-gradient(135deg,#667eea,#764ba2)',
+  'linear-gradient(135deg,#f093fb,#f5576c)',
+  'linear-gradient(135deg,#4facfe,#00f2fe)',
+  'linear-gradient(135deg,#43e97b,#38f9d7)',
+  'linear-gradient(135deg,#fa709a,#fee140)',
+  'linear-gradient(135deg,#a18cd1,#fbc2eb)',
+  'linear-gradient(135deg,#ffecd2,#fcb69f)',
+  'linear-gradient(135deg,#a1c4fd,#c2e9fb)',
+];
+
 export default function Courses() {
   const { user } = useAuth();
-  const series = user?.series ?? 'C';
   const navigate = useNavigate();
+
+  // user.series is now a single INT ID referencing the series table
+  const seriesId = user?.series ?? 1;
 
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeId, setActiveId] = useState(null);
-  const [viewerPdf, setViewerPdf] = useState(null);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
 
-  useEffect(() => { fetchLibrary(); }, [series]);
+  // Two-phase nav
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [lessons, setLessons] = useState([]);
+  const [lessonsLoading, setLessonsLoading] = useState(false);
 
-  const fetchLibrary = async () => {
+  const [viewerPdf, setViewerPdf] = useState(null);
+  const panelRef = useRef(null);
+
+  useEffect(() => { fetchSubjects(); }, [seriesId]);
+
+  const fetchSubjects = async () => {
     setLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem('bac_token');
-      const res = await fetch(`${API_BASE_URL}/courses/library?series=${series}`, {
+      const res = await fetch(`${API_BASE_URL}/courses/library?series=${seriesId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      if (data.subjects && data.subjects.length > 0) {
+      if (data.subjects) {
         setSubjects(data.subjects);
-        setActiveId(data.subjects[0].id);
+      } else {
+        setError('Impossible de charger les matières.');
       }
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    } catch {
+      setError('Erreur de connexion.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubjectClick = async (subject) => {
+    setSelectedSubject(subject);
+    setLessonsLoading(true);
+    setLessons([]);
+    try {
+      const token = localStorage.getItem('bac_token');
+      const res = await fetch(`${API_BASE_URL}/courses/library?series=${seriesId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      // Find the clicked subject in the fresh data to get its lessons
+      const found = (data.subjects || []).find(s => s.id === subject.id);
+      setLessons(found?.lessons || []);
+    } catch {
+      setLessons([]);
+    } finally {
+      setLessonsLoading(false);
+      setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    }
   };
 
   const handleLessonClick = async (lesson) => {
     if (lesson.pdf_url) {
-      setViewerPdf({ url: lesson.pdf_url, title: lesson.title });
+      setViewerPdf({ url: `${BACKEND_URL}${lesson.pdf_url}`, title: lesson.title });
       try {
         const token = localStorage.getItem('bac_token');
         await fetch(`${API_BASE_URL}/courses/lesson-progress`, {
@@ -46,154 +97,238 @@ export default function Courses() {
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ lesson_id: lesson.id, progress_percent: 100 })
         });
-        fetchLibrary();
-      } catch (err) { }
+      } catch { }
     } else {
       navigate(`/courses/lesson/${lesson.id}`);
     }
   };
 
-  if (loading) return (
-    <div style={{ padding: '4rem', textAlign: 'center', color: '#64748b' }}>
-      <BookOpen size={40} style={{ marginBottom: '1rem', opacity: 0.4 }} />
-      <div>Chargement des cours...</div>
-    </div>
+  const filteredSubjects = subjects.filter(s =>
+    s.name.toLowerCase().includes(search.toLowerCase())
   );
-
-  if (!subjects.length) return (
-    <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-      Aucun cours disponible pour la série {series}.
-    </div>
-  );
-
-  const current = subjects.find(s => s.id === activeId) ?? subjects[0];
-  const chapters = (current.chapters || []).filter(ch => ch.title.toLowerCase().includes(search.toLowerCase()));
-  const lessons = (current.lessons || []).filter(l => l.title.toLowerCase().includes(search.toLowerCase()));
-  const hasChapters = chapters.length > 0;
-  const hasLessons = lessons.length > 0;
 
   return (
     <div>
+      {/* Hero */}
       <div className="page-hero">
         <div>
           <h1 className="page-title">Bibliothèque de Cours</h1>
-          <p className="page-subtitle">Programme officiel — <strong>Série {series}</strong> · Mauritanie</p>
+          <p className="page-subtitle">Programme officiel · Mauritanie</p>
         </div>
       </div>
 
       {/* Search */}
-      <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
+      <div style={{ position: 'relative', marginBottom: '2rem' }}>
         <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
         <input
           type="text"
-          placeholder="Rechercher une leçon ou un cours..."
+          placeholder="Rechercher une matière..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{ width: '100%', padding: '0.85rem 1rem 0.85rem 2.75rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: 'white', outline: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.04)', fontSize: '0.9rem' }}
+          style={{ width: '100%', padding: '0.9rem 1rem 0.9rem 2.75rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: 'white', outline: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.04)', fontSize: '0.9rem', boxSizing: 'border-box' }}
         />
       </div>
 
-      {/* Subject tabs */}
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-        {subjects.map(s => (
-          <button key={s.id} onClick={() => setActiveId(s.id)} style={{
-            display: 'flex', alignItems: 'center', gap: '0.6rem',
-            padding: '0.6rem 1.25rem', borderRadius: '50px', border: 'none',
-            cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', transition: 'all 0.2s ease',
-            background: activeId === s.id ? 'linear-gradient(135deg, #667eea, #764ba2)' : 'white',
-            color: activeId === s.id ? 'white' : '#475569',
-            boxShadow: activeId === s.id ? '0 8px 20px rgba(102,126,234,0.35)' : '0 2px 8px rgba(0,0,0,0.06)',
-          }}>
-            <span>📚</span>{s.name}
-            <span style={{ padding: '2px 9px', borderRadius: '50px', fontSize: '0.72rem', fontWeight: 800, background: activeId === s.id ? 'rgba(255,255,255,0.25)' : '#f1f5f9', color: activeId === s.id ? 'white' : '#64748b' }}>
-              {(s.chapters?.length ?? 0) + (s.lessons?.length ?? 0)}
-            </span>
-          </button>
-        ))}
-      </div>
+      {/* Subject grid */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '5rem', color: '#94a3b8' }}>
+          <Loader2 size={36} style={{ margin: '0 auto 1rem', display: 'block' }} className="anim-spin" />
+          Chargement des matières…
+        </div>
+      ) : error ? (
+        <div style={{ textAlign: 'center', padding: '4rem', color: '#ef4444' }}>
+          <AlertCircle size={32} style={{ marginBottom: '0.75rem', display: 'block', margin: '0 auto 0.75rem' }} />
+          {error}
+        </div>
+      ) : filteredSubjects.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '4rem', color: '#64748b' }}>Aucune matière disponible.</div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+          gap: '1.25rem',
+          marginBottom: '2.5rem'
+        }}>
+          {filteredSubjects.map((subject, idx) => {
+            const grad = GRADIENTS[idx % GRADIENTS.length];
+            const isActive = selectedSubject?.id === subject.id;
+            const total = subject.lessons?.length ?? 0;
+            const done = (subject.lessons || []).filter(l => (l.progress ?? 0) >= 100).length;
+            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-      {/* Two-column grid: Chapitres + Leçons */}
-      <div style={{ display: 'grid', gridTemplateColumns: hasChapters && hasLessons ? '1fr 1fr' : '1fr', gap: '2rem', alignItems: 'start' }}>
-
-        {/* ── CHAPITRES ── */}
-        {hasChapters && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '1.25rem' }}>
-              <div style={{ width: 6, height: 26, background: 'linear-gradient(135deg,#f59e0b,#d97706)', borderRadius: '3px' }} />
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>📂 Chapitres</h2>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              {chapters.map(ch => (
-                <div key={ch.id}
-                  onClick={() => ch.pdf_url && window.open(`${BACKEND_URL}${ch.pdf_url}`, '_blank')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.1rem 1.25rem', background: 'white', borderRadius: '16px', border: '1px solid #e8edf5', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', cursor: ch.pdf_url ? 'pointer' : 'default', transition: 'all 0.25s' }}
-                  onMouseOver={e => { if (ch.pdf_url) { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 24px rgba(0,0,0,0.08)'; } }}
-                  onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.04)'; }}
-                >
-                  <div style={{ width: 46, height: 46, borderRadius: '12px', flexShrink: 0, background: 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <BookMarked size={22} style={{ color: '#d97706' }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{ch.title}</div>
-                    {ch.description && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>{ch.description}</div>}
-                    {ch.pdf_url && (
-                      <div style={{ fontSize: '0.7rem', color: '#d97706', fontWeight: 600, marginTop: '0.25rem' }}>📄 Fichier de cours disponible</div>
-                    )}
-                  </div>
-                  <ChevronDown size={18} style={{ color: '#94a3b8', flexShrink: 0 }} />
+            return (
+              <div
+                key={subject.id}
+                onClick={() => handleSubjectClick(subject)}
+                style={{
+                  background: isActive ? grad : 'white',
+                  borderRadius: '20px',
+                  padding: '1.5rem',
+                  cursor: 'pointer',
+                  border: isActive ? 'none' : '1px solid #e8edf5',
+                  boxShadow: isActive
+                    ? '0 12px 30px rgba(102,126,234,0.35)'
+                    : '0 2px 12px rgba(0,0,0,0.05)',
+                  transform: isActive ? 'translateY(-4px)' : 'none',
+                  transition: 'all 0.25s ease',
+                  userSelect: 'none',
+                }}
+                onMouseOver={e => { if (!isActive) { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 24px rgba(0,0,0,0.08)'; } }}
+                onMouseOut={e => { if (!isActive) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.05)'; } }}
+              >
+                {/* Icon circle */}
+                <div style={{
+                  width: 52, height: 52, borderRadius: '14px',
+                  background: isActive ? 'rgba(255,255,255,0.2)' : `rgba(102,126,234,0.1)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: '1rem', fontSize: '1.65rem'
+                }}>
+                  📘
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* ── LEÇONS ── */}
-        {(hasLessons || !hasChapters) && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '1.25rem' }}>
-              <div style={{ width: 6, height: 26, background: current.gradient || 'linear-gradient(135deg,#667eea,#764ba2)', borderRadius: '3px' }} />
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>🎓 Leçons & Cours</h2>
-            </div>
-            {lessons.length === 0 ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', background: 'white', borderRadius: '16px', border: '1px solid #e8edf5' }}>
+                <div style={{ fontWeight: 800, fontSize: '1rem', color: isActive ? 'white' : '#0f172a', marginBottom: '0.3rem' }}>
+                  {subject.name}
+                </div>
+
+                <div style={{ fontSize: '0.8rem', color: isActive ? 'rgba(255,255,255,0.75)' : '#64748b', marginBottom: '1rem' }}>
+                  {total} leçon{total !== 1 ? 's' : ''}
+                </div>
+
+                {/* Progress bar */}
+                {total > 0 && (
+                  <div>
+                    <div style={{ height: 4, borderRadius: 4, background: isActive ? 'rgba(255,255,255,0.25)' : '#e2e8f0', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, borderRadius: 4, background: isActive ? 'white' : grad, transition: 'width 0.4s ease' }} />
+                    </div>
+                    <div style={{ fontSize: '0.72rem', marginTop: '0.4rem', color: isActive ? 'rgba(255,255,255,0.7)' : '#94a3b8', fontWeight: 600 }}>
+                      {pct}% complété
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+                  <ChevronRight size={18} style={{ color: isActive ? 'rgba(255,255,255,0.7)' : '#94a3b8' }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Lesson panel — shown when a subject is selected */}
+      {selectedSubject && (
+        <div ref={panelRef} style={{
+          background: 'white',
+          borderRadius: '20px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.06)',
+          overflow: 'hidden',
+          marginBottom: '3rem',
+          animation: 'fadeInUp 0.3s ease'
+        }}>
+          {/* Panel header */}
+          <div style={{
+            padding: '1.25rem 1.5rem',
+            borderBottom: '1px solid #f1f5f9',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            background: '#f8fafc'
+          }}>
+            <button
+              onClick={() => setSelectedSubject(null)}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#64748b', fontWeight: 600, gap: '0.4rem', fontSize: '0.9rem', padding: 0 }}
+            >
+              <ChevronLeft size={18} /> Retour
+            </button>
+            <div style={{ width: 1, height: 20, background: '#e2e8f0' }} />
+            <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '1.05rem' }}>
+              🎓 {selectedSubject.name}
+            </span>
+          </div>
+
+          {/* Lessons list */}
+          <div style={{ padding: '1.5rem' }}>
+            {lessonsLoading ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                <Loader2 size={28} className="anim-spin" style={{ display: 'block', margin: '0 auto 0.75rem' }} />
+                Chargement des leçons…
+              </div>
+            ) : lessons.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
                 Aucune leçon disponible pour cette matière.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                {lessons.map(lesson => {
-                  const progress = lesson.progress || 0;
+                {lessons.map((lesson, idx) => {
+                  const progress = lesson.progress ?? 0;
                   return (
-                    <div key={lesson.id} style={{ background: 'white', borderRadius: '16px', border: '1px solid #e8edf5', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', overflow: 'hidden', transition: 'all 0.25s', position: 'relative' }}
-                      onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 24px rgba(0,0,0,0.08)'; }}
-                      onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.04)'; }}
+                    <div
+                      key={lesson.id}
+                      style={{
+                        borderRadius: '14px',
+                        border: '1px solid #e8edf5',
+                        overflow: 'hidden',
+                        transition: 'all 0.2s ease',
+                        position: 'relative',
+                        background: 'white'
+                      }}
+                      onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.07)'; }}
+                      onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
                     >
-                      {progress > 0 && <div style={{ position: 'absolute', top: 0, left: 0, height: '3px', width: `${progress}%`, background: current.gradient || 'linear-gradient(135deg,#667eea,#764ba2)' }} />}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.1rem 1.25rem 0.75rem' }}>
-                        <div style={{ width: 46, height: 46, borderRadius: '12px', flexShrink: 0, background: 'rgba(102,126,234,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <FileText size={22} style={{ color: '#667eea' }} />
+                      {/* Progress stripe at top */}
+                      {progress > 0 && (
+                        <div style={{ position: 'absolute', top: 0, left: 0, height: 3, width: `${progress}%`, background: 'linear-gradient(135deg,#667eea,#764ba2)' }} />
+                      )}
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem' }}>
+                        <div style={{ width: 44, height: 44, borderRadius: '12px', flexShrink: 0, background: 'rgba(102,126,234,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <FileText size={20} style={{ color: '#667eea' }} />
                         </div>
+
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{lesson.title}</span>
-                            {progress === 100 && <CheckCircle size={14} style={{ color: '#22c55e' }} />}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem' }}>{lesson.title}</span>
+                            {progress >= 100 && <CheckCircle size={15} style={{ color: '#22c55e', flexShrink: 0 }} />}
                           </div>
-                          {lesson.description && <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '0.2rem' }}>{lesson.description}</div>}
+                          {lesson.description && (
+                            <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {lesson.description}
+                            </div>
+                          )}
+                          {lesson.type && (
+                            <span style={{ display: 'inline-block', marginTop: '0.3rem', fontSize: '0.7rem', fontWeight: 700, color: '#667eea', background: '#eef2ff', padding: '0.15rem 0.5rem', borderRadius: '6px' }}>
+                              {lesson.type}
+                            </span>
+                          )}
                         </div>
-                        <ChevronDown size={18} style={{ color: '#94a3b8', flexShrink: 0 }} />
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem 1.25rem 1rem', borderTop: '1px solid #f1f5f9' }}>
-                        <button onClick={() => handleLessonClick(lesson)}
-                          style={{ flex: 1, padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', borderRadius: '10px', border: 'none', background: '#f1f5f9', color: '#667eea', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
-                          onMouseOver={e => e.currentTarget.style.background = '#e0e7ff'} onMouseOut={e => e.currentTarget.style.background = '#f1f5f9'}>
-                          <BookOpen size={15} /> Lire
-                        </button>
-                        {lesson.pdf_url && (
-                          <button onClick={e => { e.stopPropagation(); const a = document.createElement('a'); a.href = `${BACKEND_URL}${lesson.pdf_url}`; a.download = lesson.title + '.pdf'; document.body.appendChild(a); a.click(); document.body.removeChild(a); }}
-                            style={{ padding: '0.5rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', color: '#475569', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
-                            onMouseOver={e => e.currentTarget.style.background = '#f8fafc'} onMouseOut={e => e.currentTarget.style.background = 'white'}>
-                            <Download size={14} />
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                          <button
+                            onClick={() => handleLessonClick(lesson)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1rem', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#667eea,#764ba2)', color: 'white', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 10px rgba(102,126,234,0.3)' }}
+                          >
+                            <BookOpen size={15} /> Lire
                           </button>
-                        )}
+
+                          {lesson.pdf_url && (
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                const a = document.createElement('a');
+                                a.href = `${BACKEND_URL}${lesson.pdf_url}`;
+                                a.download = lesson.title + '.pdf';
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                              }}
+                              style={{ display: 'flex', alignItems: 'center', padding: '0.55rem 0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', color: '#475569', fontSize: '0.82rem', cursor: 'pointer' }}
+                              title="Télécharger le PDF"
+                            >
+                              <Download size={15} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -201,10 +336,10 @@ export default function Courses() {
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {viewerPdf && <PdfModal url={viewerPdf.url} title={viewerPdf.title} onClose={() => setViewerPdf(null)} />}
+      {viewerPdf && <FileViewer file={{ nom: viewerPdf.title, chemin_fichier: viewerPdf.url }} onClose={() => setViewerPdf(null)} />}
     </div>
   );
 }

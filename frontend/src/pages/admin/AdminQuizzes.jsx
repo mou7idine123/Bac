@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Award } from 'lucide-react';
 import { API_BASE_URL } from '../../apiConfig';
 
-const newEmptyQuiz = (series = 'both') => ({
+const newEmptyQuiz = (series = []) => ({
   id: null,
   title: '',
   subject_id: '',
@@ -28,20 +28,42 @@ const DIFF_COLORS = { easy: '#16a34a', medium: '#ca8a04', hard: '#dc2626' };
 
 export default function AdminQuizzes() {
   const [quizzes, setQuizzes] = useState([]);
+  const [seriesList, setSeriesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [selectedSeries, setSeries] = useState('C');
+  const [selectedSeries, setSeries] = useState('');
   const [subjects, setSubjects] = useState([]);
 
   const [view, setView] = useState(null); // null | 'form'
-  const [formData, setFormData] = useState(newEmptyQuiz('C'));
+  const [formData, setFormData] = useState(newEmptyQuiz([]));
   const [formLoading, setFL] = useState(false);
   const [formError, setFE] = useState('');
 
   // ── fetch list ──────────────────────────────────────────────
   useEffect(() => {
-    fetchQuizzes();
-    fetchSubjects();
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    setLoading(true);
+    const tk = localStorage.getItem('bac_token');
+    try {
+      const resS = await fetch(`${API_BASE_URL}/admin/series`, { headers: { Authorization: `Bearer ${tk}` } });
+      const dataS = await resS.json();
+      if (dataS.success) {
+        setSeriesList(dataS.series);
+        if (dataS.series.length > 0) {
+          setSeries(dataS.series[0].id);
+        }
+      }
+    } catch { }
+  };
+
+  useEffect(() => {
+    if (selectedSeries) {
+      fetchQuizzes();
+      fetchSubjects();
+    }
   }, [selectedSeries]);
 
   const token = () => localStorage.getItem('bac_token');
@@ -77,13 +99,18 @@ export default function AdminQuizzes() {
       });
       const data = await res.json();
       if (data.success) {
-        // Normalise answers so each question always has 4 answers
         const q = data.quiz;
-        q.questions = (q.questions || []).map(question => {
-          while (question.answers.length < 4)
-            question.answers.push({ answer_text: '', is_correct: 0 });
-          return question;
-        });
+        // Normalise answers so each question always has 4 answers
+        // Normalise series
+        let seriesArr = [];
+        try {
+          seriesArr = typeof q.series === 'string' ? JSON.parse(q.series) : (q.series || []);
+        } catch (e) {
+          seriesArr = [q.series];
+        }
+        if (!Array.isArray(seriesArr)) seriesArr = [seriesArr];
+        q.series = seriesArr;
+
         setFormData(q);
         setView('form');
       } else {
@@ -158,7 +185,7 @@ export default function AdminQuizzes() {
       const data = await res.json();
       if (data.success) {
         setView(null);
-        setFormData(newEmptyQuiz(selectedSeries));
+        setFormData(newEmptyQuiz(seriesList.map(s => s.id)));
         fetchQuizzes();
       } else {
         setFE(data.error || 'Erreur inconnue');
@@ -198,14 +225,22 @@ export default function AdminQuizzes() {
               </select>
             </div>
             <div style={fld}>
-              <label style={lbl}>Série</label>
-              <select value={formData.series}
-                onChange={e => setFormData(f => ({ ...f, series: e.target.value }))}
-                style={inp}>
-                <option value="C">Série C</option>
-                <option value="D">Série D</option>
-                <option value="both">C & D (les deux)</option>
-              </select>
+              <label style={lbl}>Filières</label>
+              <div style={{ display: 'flex', gap: '1rem', background: 'white', padding: '0.65rem 0.8rem', borderRadius: 8, border: '1px solid #cbd5e1', flexWrap: 'wrap' }}>
+                {seriesList.map(s => (
+                  <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.series.includes(s.id)}
+                      onChange={() => {
+                        const newSeries = formData.series.includes(s.id) ? formData.series.filter(curr => curr !== s.id) : [...formData.series, s.id];
+                        setFormData(f => ({ ...f, series: newSeries }));
+                      }}
+                    />
+                    Série {s.name}
+                  </label>
+                ))}
+              </div>
             </div>
             <div style={fld}>
               <label style={lbl}>Difficulté</label>
@@ -307,10 +342,9 @@ export default function AdminQuizzes() {
         <div style={{ display: 'flex', gap: '0.8rem' }}>
           <select value={selectedSeries} onChange={e => setSeries(e.target.value)}
             style={{ padding: '0.6rem 0.8rem', borderRadius: 8, border: '1px solid #e2e8f0', fontWeight: 600 }}>
-            <option value="C">Série C</option>
-            <option value="D">Série D</option>
+            {seriesList.map(s => <option key={s.id} value={s.id}>Série {s.name}</option>)}
           </select>
-          <button onClick={() => { setFormData(newEmptyQuiz(selectedSeries)); setView('form'); }}
+          <button onClick={() => { setFormData(newEmptyQuiz(seriesList.map(s => s.id))); setView('form'); }}
             className="btn btn-primary"
             style={{ background: 'linear-gradient(135deg,#8b5cf6,#d946ef)' }}>
             <Plus size={18} /> Nouveau QCM
@@ -357,9 +391,25 @@ export default function AdminQuizzes() {
                   </td>
                   <td style={{ padding: '1rem 1.2rem', fontSize: '0.85rem', color: '#475569' }}>{q.subject}</td>
                   <td style={{ padding: '1rem 1.2rem' }}>
-                    <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: 20, background: '#ede9fe', color: '#7c3aed', fontSize: '0.72rem', fontWeight: 700 }}>
-                      {q.series === 'both' ? 'C & D' : `Série ${q.series}`}
-                    </span>
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {(() => {
+                        let seriesArr = [];
+                        try {
+                          seriesArr = typeof q.series === 'string' ? JSON.parse(q.series) : (q.series || []);
+                        } catch (e) {
+                          seriesArr = q.series === 'both' ? ['C', 'D'] : [q.series];
+                        }
+                        if (!Array.isArray(seriesArr)) seriesArr = [seriesArr];
+                        return seriesArr.map(sid => {
+                          const sObj = seriesList.find(sl => sl.id === parseInt(sid));
+                          return (
+                            <span key={sid} style={{ display: 'inline-block', padding: '0.15rem 0.4rem', borderRadius: 20, background: '#ede9fe', color: '#7c3aed', fontSize: '0.65rem', fontWeight: 700 }}>
+                              {sObj ? sObj.name : sid}
+                            </span>
+                          );
+                        });
+                      })()}
+                    </div>
                   </td>
                   <td style={{ padding: '1rem 1.2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, color: '#8b5cf6' }}>

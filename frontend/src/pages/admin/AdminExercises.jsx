@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { API_BASE_URL } from '../../apiConfig';
 
-const EMPTY_FORM = (defaultSeries = 'both') => ({ title: '', description: '', type: 'Classique', difficulty: 'medium', subject_id: '', series: defaultSeries });
+const EMPTY_FORM = (defaultSeries = []) => ({ title: '', description: '', type: 'Classique', difficulty: 'medium', subject_id: '', series: defaultSeries });
 
 export default function AdminExercises() {
   const [exercises, setExercises] = useState([]);
@@ -15,15 +15,39 @@ export default function AdminExercises() {
   const [view, setView] = useState(null); // null | 'add' | 'edit'
   const [editingExercise, setEditingExercise] = useState(null);
   const [subjects, setSubjects] = useState([]);
-  const [selectedSeries, setSelectedSeries] = useState('C');
+  const [seriesList, setSeriesList] = useState([]);
+  const [selectedSeries, setSelectedSeries] = useState('');
 
-  const [formData, setFormData] = useState(EMPTY_FORM('C'));
+  const [formData, setFormData] = useState(EMPTY_FORM([]));
   const [pdfFile, setPdfFile] = useState(null);
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
 
-  useEffect(() => { fetchExercises(); setFilterSubject('Tous'); }, [selectedSeries]);
-  useEffect(() => { fetchSubjects(selectedSeries); }, [selectedSeries]);
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    const token = localStorage.getItem('bac_token');
+    try {
+      const resS = await fetch(`${API_BASE_URL}/admin/series`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const dataS = await resS.json();
+      if (dataS.success) {
+        setSeriesList(dataS.series);
+        if (dataS.series.length > 0) {
+          setSelectedSeries(dataS.series[0].id);
+        }
+      }
+    } catch { }
+  };
+
+  useEffect(() => {
+    if (selectedSeries) {
+      fetchExercises();
+      setFilterSubject('Tous');
+      fetchSubjects(selectedSeries);
+    }
+  }, [selectedSeries]);
 
   const fetchExercises = async () => {
     setLoading(true);
@@ -50,13 +74,21 @@ export default function AdminExercises() {
 
   const handleEdit = async (ex) => {
     setEditingExercise(ex);
+    let seriesArr = [];
+    try {
+      seriesArr = typeof ex.series === 'string' ? JSON.parse(ex.series) : (ex.series || []);
+    } catch (e) {
+      seriesArr = [ex.series];
+    }
+    if (!Array.isArray(seriesArr)) seriesArr = [seriesArr];
+
     setFormData({
       title: ex.title,
       description: ex.description || '',
       type: ex.type || 'Classique',
       difficulty: ex.difficulty || 'medium',
       subject_id: ex.subject_id,
-      series: ex.series || selectedSeries
+      series: seriesArr
     });
     setView('edit');
   };
@@ -89,7 +121,8 @@ export default function AdminExercises() {
       body.append('type', formData.type);
       body.append('difficulty', formData.difficulty);
       body.append('subject_id', formData.subject_id);
-      body.append('series', formData.series); // Added series to form data
+
+      formData.series.forEach(s => body.append('series[]', s));
 
       if (isEdit) {
         body.append('_method', 'PUT');
@@ -119,7 +152,7 @@ export default function AdminExercises() {
   const resetForm = () => {
     setView(null);
     setEditingExercise(null);
-    setFormData(EMPTY_FORM(selectedSeries));
+    setFormData(EMPTY_FORM(seriesList.map(s => s.id)));
     setPdfFile(null);
     setFormError('');
   };
@@ -147,8 +180,7 @@ export default function AdminExercises() {
             onChange={e => setSelectedSeries(e.target.value)}
             style={{ padding: '0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontWeight: 600 }}
           >
-            <option value="C">Série C</option>
-            <option value="D">Série D</option>
+            {seriesList.map(s => <option key={s.id} value={s.id}>Série {s.name}</option>)}
           </select>
           <button
             onClick={() => setView('add')}
@@ -208,7 +240,28 @@ export default function AdminExercises() {
                         <div style={{ fontWeight: 700, color: '#0f172a' }}>{ex.title}</div>
                         <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{ex.type}</div>
                       </td>
-                      <td style={td}>{ex.subject}</td>
+                      <td style={td}>
+                        <div>{ex.subject}</div>
+                        <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                          {(() => {
+                            let seriesArr = [];
+                            try {
+                              seriesArr = typeof ex.series === 'string' ? JSON.parse(ex.series) : (ex.series || []);
+                            } catch (e) {
+                              seriesArr = ex.series === 'both' ? ['C', 'D'] : [ex.series];
+                            }
+                            if (!Array.isArray(seriesArr)) seriesArr = [seriesArr];
+                            return seriesArr.map(sid => {
+                              const sObj = seriesList.find(sl => sl.id === parseInt(sid));
+                              return (
+                                <span key={sid} style={{ display: 'inline-block', padding: '0.1rem 0.3rem', borderRadius: '4px', background: '#e0e7ff', color: '#4f46e5', fontSize: '0.6rem', fontWeight: 800 }}>
+                                  {sObj ? sObj.name : sid}
+                                </span>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </td>
                       <td style={td}>
                         <span style={{ padding: '0.2rem 0.6rem', borderRadius: '4px', background: diff.bg, color: diff.text, fontSize: '0.7rem', fontWeight: 700 }}>
                           {diff.label}
@@ -255,12 +308,22 @@ export default function AdminExercises() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div style={fld}>
-                  <label style={lbl}>Série</label>
-                  <select value={formData.series} onChange={e => setFormData({ ...formData, series: e.target.value })} style={input}>
-                    <option value="C">Série C</option>
-                    <option value="D">Série D</option>
-                    <option value="both">C & D (les deux)</option>
-                  </select>
+                  <label style={lbl}>Filières</label>
+                  <div style={{ display: 'flex', gap: '1rem', background: '#f8fafc', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', flexWrap: 'wrap' }}>
+                    {seriesList.map(s => (
+                      <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}>
+                        <input
+                          type="checkbox"
+                          checked={formData.series.includes(s.id)}
+                          onChange={() => {
+                            const newSeries = formData.series.includes(s.id) ? formData.series.filter(curr => curr !== s.id) : [...formData.series, s.id];
+                            setFormData({ ...formData, series: newSeries });
+                          }}
+                        />
+                        Série {s.name}
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div style={fld}>
                   <label style={lbl}>Description</label>

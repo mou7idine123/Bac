@@ -16,17 +16,16 @@ class Subject {
         return $stmt->fetchAll();
     }
 
-    public function getBySeries($seriesName) {
+    public function getBySeries($seriesId) {
         $stmt = $this->db->prepare("
-            SELECT s.* 
+            SELECT s.*, ss.coefficient
             FROM subjects s
-            INNER JOIN series_subjects ss ON s.id = ss.subject_id
-            INNER JOIN series sr ON ss.series_id = sr.id
-            WHERE sr.name = :name
+            JOIN subject_series ss ON s.id = ss.subject_id
+            WHERE ss.series_id = :series
             ORDER BY s.id ASC
         ");
-        $stmt->execute(['name' => $seriesName]);
-        return $stmt->fetchAll();
+        $stmt->execute(['series' => (int)$seriesId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function findById($id) {

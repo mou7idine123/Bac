@@ -96,7 +96,20 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  const value = { user, loading, error, login, register, logout, getToken };
+  // ─── Update Profile ──────────────────────────────────────────
+  const updateProfile = async (updateData) => {
+    setError(null);
+    const res = await authFetch('/auth/update', {
+      method: 'POST',
+      body: JSON.stringify(updateData),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur lors de la mise à jour du profil');
+    setUser(data.user);
+    return data.user;
+  };
+
+  const value = { user, loading, error, login, register, logout, getToken, updateProfile };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

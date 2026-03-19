@@ -1,3 +1,6 @@
+-- CREATE DATABASE bac_prepa;
+-- USE bac_prepa
+
 -- Utilisateurs (Élèves et Admins)
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -5,21 +8,39 @@ CREATE TABLE IF NOT EXISTS users (
     last_name VARCHAR(100) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('student', 'admin') DEFAULT 'student',
-    series ENUM('C', 'D') NOT NULL,
-    avatar_url VARCHAR(255) NULL,
+    `role` ENUM('student','admin') DEFAULT 'student',
+    `series` INT NOT NULL,
+    `avatar_url` VARCHAR(255) DEFAULT NULL,
+    current_streak INT DEFAULT 0,
+    max_streak INT DEFAULT 0,
+    last_activity_date DATE NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Matières (Maths, Physique, Sciences Nat)
+-- Séries (Filières)
+CREATE TABLE IF NOT EXISTS series (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL
+);
+
+-- Matières
 CREATE TABLE IF NOT EXISTS subjects (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT,
-    icon VARCHAR(50) NULL,
     color_theme VARCHAR(20) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS subject_series (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    subject_id INT NOT NULL,
+    series_id INT NOT NULL,
+    coefficient FLOAT DEFAULT 1,
+    UNIQUE KEY (subject_id, series_id),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+    FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
 );
 
 -- Chapitres
@@ -27,44 +48,68 @@ CREATE TABLE IF NOT EXISTS chapters (
     id INT AUTO_INCREMENT PRIMARY KEY,
     subject_id INT NOT NULL,
     title VARCHAR(255) NOT NULL,
-    description TEXT,
-    order_index INT DEFAULT 0,
+    series JSON NULL,
     FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
 
 -- Leçons / Cours
 CREATE TABLE IF NOT EXISTS lessons (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    chapter_id INT NOT NULL,
+    subject_id INT NOT NULL,
     title VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NULL,
+    description TEXT,
     content LONGTEXT NULL,
-    pdf_path VARCHAR(255) NULL,
-    reference_links JSON NULL,
-    order_index INT DEFAULT 0,
+    pdf_url VARCHAR(255) NULL,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
+);
+
+-- Progression des leçons
+CREATE TABLE IF NOT EXISTS lesson_progress (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    lesson_id INT NOT NULL,
+    progress_percent INT DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_user_lesson (user_id, lesson_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
+);
+
+-- Résumés
+CREATE TABLE IF NOT EXISTS resumes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    subject_id INT NOT NULL,
+    series JSON NULL,
+    pdf_url VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
 
 -- Fiches de révision
 CREATE TABLE IF NOT EXISTS revision_sheets (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    chapter_id INT NOT NULL,
+    chapter_id INT NULL,
+    subject_id INT NOT NULL,
+    series JSON NULL,
     title VARCHAR(255) NOT NULL,
-    summary_content LONGTEXT NOT NULL,
+    summary_content LONGTEXT NULL,
     pdf_url VARCHAR(255) NULL,
-    FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE
+    FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
 
 -- Quiz (Évaluations)
 CREATE TABLE IF NOT EXISTS quizzes (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    chapter_id INT NULL,
-    subject_id INT NULL,
+    subject_id INT NOT NULL,
     title VARCHAR(255) NOT NULL,
-    description TEXT,
-    difficulty ENUM('easy', 'medium', 'hard', 'bac') DEFAULT 'medium',
-    time_limit_minutes INT NULL,
-    FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE,
+    series JSON NULL,
+    difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium',
+    time_limit_minutes INT DEFAULT 15,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
 
@@ -141,7 +186,7 @@ CREATE TABLE IF NOT EXISTS user_progress (
 CREATE TABLE IF NOT EXISTS exams (
     id INT AUTO_INCREMENT PRIMARY KEY,
     subject_id INT NOT NULL,
-    series ENUM('C', 'D') NOT NULL,
+    series JSON NOT NULL,
     year INT NOT NULL,
     session ENUM('normale', 'complementaire') NOT NULL,
     pdf_statement_url VARCHAR(255) NOT NULL,
@@ -170,4 +215,74 @@ CREATE TABLE IF NOT EXISTS ai_messages (
     content TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE
+);
+
+-- Badges de Gamification
+CREATE TABLE IF NOT EXISTS badges (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    icon VARCHAR(50) NULL,
+    milestone_days INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Badges obtenus par les utilisateurs
+CREATE TABLE IF NOT EXISTS user_badges (
+    user_id INT NOT NULL,
+    badge_id INT NOT NULL,
+    unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, badge_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (badge_id) REFERENCES badges(id) ON DELETE CASCADE
+);
+
+-- Exercices
+CREATE TABLE IF NOT EXISTS exercises (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    subject_id INT NOT NULL,
+    series JSON NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    type VARCHAR(50) NULL,
+    difficulty ENUM('easy', 'medium', 'hard', 'bac') DEFAULT 'medium',
+    pdf_path VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
+);
+
+-- Progression des Exercices
+CREATE TABLE IF NOT EXISTS exercise_progress (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    exercise_id INT NOT NULL,
+    status ENUM('not_started', 'in_progress', 'completed') DEFAULT 'not_started',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY user_exercise_unique (user_id, exercise_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+);
+
+-- Progression des Quiz
+CREATE TABLE IF NOT EXISTS quiz_progress (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    quiz_id INT NOT NULL,
+    status ENUM('not_started', 'in_progress', 'completed') DEFAULT 'not_started',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY user_quiz_unique (user_id, quiz_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE
+);
+
+-- Progression des Annales (Exams)
+CREATE TABLE IF NOT EXISTS exam_progress (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    exam_id INT NOT NULL,
+    status ENUM('not_started', 'in_progress', 'completed') DEFAULT 'not_started',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY user_exam_unique (user_id, exam_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
 );

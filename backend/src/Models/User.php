@@ -11,6 +11,10 @@ class User {
         $this->db = Database::getInstance()->getConnection();
     }
 
+    public function getDb() {
+        return $this->db;
+    }
+
     public function findByEmail($email) {
         $stmt = $this->db->prepare("SELECT * FROM users WHERE email = :email LIMIT 1");
         $stmt->execute(['email' => $email]);
@@ -28,11 +32,11 @@ class User {
         
         $userData = [
             'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
-            'email' => $data['email'],
+            'last_name'  => $data['last_name'],
+            'email'      => $data['email'],
             'password_hash' => password_hash($data['password'], PASSWORD_DEFAULT),
-            'series' => $data['series'] ?? 'C',
-            'role' => $data['role'] ?? 'student'
+            'series'     => (int)($data['series'] ?? 1), // Expects series ID now
+            'role'       => $data['role'] ?? 'student'
         ];
 
         if ($stmt->execute($userData)) {
@@ -57,7 +61,11 @@ class User {
         }
         if (isset($data['series'])) {
             $sets[] = "series = :series";
-            $params['series'] = $data['series'];
+            $params['series'] = (int)$data['series']; // Store as INT ID
+        }
+        if (!empty($data['password'])) {
+            $sets[] = "password_hash = :password_hash";
+            $params['password_hash'] = password_hash($data['password'], PASSWORD_DEFAULT);
         }
         
         if (empty($sets)) return true;

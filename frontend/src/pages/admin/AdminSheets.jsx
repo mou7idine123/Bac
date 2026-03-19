@@ -20,7 +20,8 @@ export default function AdminSheets() {
     const [editingSheet, setEditingSheet] = useState(null);
 
     const [subjects, setSubjects] = useState([]);
-    const [selectedSeries, setSelectedSeries] = useState('both');
+    const [seriesList, setSeriesList] = useState([]);
+    const [selectedSeries, setSelectedSeries] = useState('');
     const [selectedSubject, setSelectedSubject] = useState('');
     const [filterSeries, setFilterSeries] = useState('both');
     const [filterSubject, setFilterSubject] = useState('');
@@ -34,17 +35,40 @@ export default function AdminSheets() {
     const [formError, setFormError] = useState('');
     const [formLoading, setFormLoading] = useState(false);
 
-    useEffect(() => { fetchSheets(); }, []);
+    useEffect(() => {
+        fetchInitialData();
+    }, []);
+
+    const fetchInitialData = async () => {
+        setLoading(true);
+        const token = localStorage.getItem('bac_token');
+        try {
+            const resS = await fetch(`${API_BASE_URL}/admin/series`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const dataS = await resS.json();
+            if (dataS.success) {
+                setSeriesList(dataS.series);
+                if (dataS.series.length > 0) {
+                    setSelectedSeries(dataS.series[0].id);
+                    // fetchSheets would be called by the other useEffect when filterSeries changes (if it changes)
+                    // But filterSeries defaults to 'both'.
+                }
+            }
+        } catch { setError('Impossible de se connecter'); } finally { setLoading(false); }
+    };
+
+    useEffect(() => { fetchSheets(); }, [filterSeries]);
 
     useEffect(() => {
-        fetchSubjects(view === 'add' || view === 'edit' ? selectedSeries : filterSeries);
+        if (view) {
+            fetchSubjects(view === 'add' || view === 'edit' ? selectedSeries : filterSeries);
+        }
     }, [selectedSeries, filterSeries, view]);
 
     const fetchSheets = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('bac_token');
-            const res = await fetch(`${API_BASE_URL}/admin/sheets`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const res = await fetch(`${API_BASE_URL}/admin/sheets?series=${filterSeries}`, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await res.json();
             if (data.success) setSheets(data.sheets);
             else setError(data.error || 'Erreur inconnue');
@@ -185,7 +209,16 @@ export default function AdminSheets() {
     const filteredSheets = sheets.filter(s => {
         const matchSearch = s.title.toLowerCase().includes(search.toLowerCase()) ||
             s.subject?.toLowerCase().includes(search.toLowerCase());
-        const matchSeries = filterSeries === 'both' || s.series === filterSeries || s.series === 'both';
+
+        let seriesArr = [];
+        try {
+            seriesArr = typeof s.series === 'string' ? JSON.parse(s.series) : (s.series || []);
+        } catch (e) {
+            seriesArr = [s.series];
+        }
+        if (!Array.isArray(seriesArr)) seriesArr = [seriesArr];
+
+        const matchSeries = filterSeries === 'both' || seriesArr.includes(parseInt(filterSeries));
         const matchSubject = filterSubject === '' || s.subject_id == filterSubject;
         return matchSearch && matchSeries && matchSubject;
     });
@@ -215,8 +248,7 @@ export default function AdminSheets() {
                                 <div style={{ flex: 1, minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                     <label style={lbl}>Série</label>
                                     <select value={selectedSeries} onChange={e => { setSelectedSeries(e.target.value); setSelectedSubject(''); }} style={sel} required>
-                                        <option value="C">Série C</option>
-                                        <option value="D">Série D</option>
+                                        {seriesList.map(s => <option key={s.id} value={s.id}>Série {s.name}</option>)}
                                     </select>
                                 </div>
 
@@ -289,8 +321,7 @@ export default function AdminSheets() {
                     <select value={filterSeries} onChange={e => { setFilterSeries(e.target.value); setFilterSubject(''); }}
                         style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 600, background: 'white' }}>
                         <option value="both">Toutes les Séries</option>
-                        <option value="C">Série C</option>
-                        <option value="D">Série D</option>
+                        {seriesList.map(s => <option key={s.id} value={s.id}>Série {s.name}</option>)}
                     </select>
 
                     <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)}
@@ -326,6 +357,25 @@ export default function AdminSheets() {
                                                 </div>
                                                 <div>
                                                     <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{sheet.title}</div>
+                                                    <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                                                        {(() => {
+                                                            let seriesArr = [];
+                                                            try {
+                                                                seriesArr = typeof sheet.series === 'string' ? JSON.parse(sheet.series) : (sheet.series || []);
+                                                            } catch (e) {
+                                                                seriesArr = sheet.series === 'both' ? ['C', 'D'] : [sheet.series];
+                                                            }
+                                                            if (!Array.isArray(seriesArr)) seriesArr = [seriesArr];
+                                                            return seriesArr.map(sid => {
+                                                                const sObj = seriesList.find(sl => sl.id === parseInt(sid));
+                                                                return (
+                                                                    <span key={sid} style={{ fontSize: '0.6rem', padding: '0.1rem 0.3rem', background: '#fef3c7', color: '#d97706', borderRadius: '4px', fontWeight: 800 }}>
+                                                                        {sObj ? sObj.name : sid}
+                                                                    </span>
+                                                                );
+                                                            });
+                                                        })()}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>

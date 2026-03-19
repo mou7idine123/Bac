@@ -14,13 +14,13 @@ import Planning from './pages/Planning';
 import Exams from './pages/Exams';
 import LessonView from './pages/LessonView';
 import ChapterSummaries from './pages/ChapterSummaries';
+import Settings from './pages/Settings';
 
 // Admin Imports
 import AdminRoute from './components/AdminRoute';
 import AdminLayout from './layouts/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminSubjects from './pages/admin/AdminSubjects';
-import AdminChapters from './pages/admin/AdminChapters';
 import AdminResumes from './pages/admin/AdminResumes';
 import AdminCourses from './pages/admin/AdminCourses';
 import AdminSheets from './pages/admin/AdminSheets';
@@ -29,6 +29,7 @@ import AdminQuizzes from './pages/admin/AdminQuizzes';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminExams from './pages/admin/AdminExams';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminSeries from './pages/admin/AdminSeries';
 
 function App() {
   return (
@@ -57,6 +58,7 @@ function App() {
             <Route path="planning" element={<Planning />} />
             <Route path="exams" element={<Exams />} />
             <Route path="summaries" element={<ChapterSummaries />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
           {/* Admin routes */}
           <Route
@@ -66,7 +68,6 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="subjects" element={<AdminSubjects />} />
-            <Route path="chapters" element={<AdminChapters />} />
             <Route path="resumes" element={<AdminResumes />} />
             <Route path="courses" element={<AdminCourses />} />
             <Route path="sheets" element={<AdminSheets />} />
@@ -74,6 +75,7 @@ function App() {
             <Route path="quizzes" element={<AdminQuizzes />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="exams" element={<AdminExams />} />
+            <Route path="series" element={<AdminSeries />} />
             {/* Future admin pages will be added here */}
           </Route>
 

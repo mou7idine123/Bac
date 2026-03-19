@@ -20,7 +20,6 @@ export default function AdminLayout() {
     { path: '/admin/users', icon: Users, label: 'Utilisateurs' },
     { isDivider: true, label: 'Contenu' },
     { path: '/admin/subjects', icon: BookOpen, label: 'Matières' },
-    { path: '/admin/chapters', icon: Layers, label: 'Chapitres' },
     { path: '/admin/resumes', icon: FileEdit, label: 'Résumés' },
     { path: '/admin/courses', icon: FileText, label: 'Cours' },
     { path: '/admin/sheets', icon: Copy, label: 'Fiches Révision' },
@@ -30,6 +29,7 @@ export default function AdminLayout() {
     { path: '/admin/quizzes', icon: Award, label: 'QCM' },
     { isDivider: true, label: 'Configuration' },
     { path: '/admin/settings', icon: Settings, label: 'Paramètres' },
+    { path: '/admin/series', icon: Layers, label: 'Séries' },
   ];
 
   return (

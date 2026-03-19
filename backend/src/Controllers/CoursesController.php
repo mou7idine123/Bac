@@ -50,12 +50,12 @@ class CoursesController {
         $this->jsonResponse(['chapters' => $chapters]);
     }
 
-    // GET /courses/lessons/{chapter_id}
-    public function lessons($chapterId = null) {
-        if (!$chapterId) {
-            $this->jsonResponse(['error' => 'ID du chapitre requis'], 400);
+    // GET /courses/lessons/{subject_id}
+    public function lessons($subjectId = null) {
+        if (!$subjectId) {
+            $this->jsonResponse(['error' => 'ID de la matière requis'], 400);
         }
-        $lessons = $this->chapterModel->getLessonsByChapter($chapterId);
+        $lessons = $this->chapterModel->getLessonsBySubject($subjectId);
         $this->jsonResponse(['lessons' => $lessons]);
     }
     
@@ -65,7 +65,6 @@ class CoursesController {
         }
         $lesson = $this->chapterModel->getLesson($lessonId);
         if ($lesson) {
-            $lesson['reference_links'] = json_decode($lesson['reference_links'] ?? '[]', true) ?: [];
             $this->jsonResponse(['lesson' => $lesson]);
         } else {
             $this->jsonResponse(['error' => 'Lecon introuvable'], 404);
@@ -99,29 +98,29 @@ class CoursesController {
                     SELECT l.*, lp.progress_percent
                     FROM lessons l
                     LEFT JOIN lesson_progress lp ON (l.id = lp.lesson_id AND lp.user_id = ?)
-                    WHERE l.subject_id = ? AND (l.series = ? OR l.series = 'both')
-                    ORDER BY l.order_index ASC, l.id DESC
+                    WHERE l.subject_id = ?
+                    ORDER BY l.id DESC
                 ");
-                $stmt->execute([$userId, $subject['id'], $series]);
+                $stmt->execute([$userId, $subject['id']]);
             } else {
                 $stmt = $db->prepare("
                     SELECT l.*
                     FROM lessons l
-                    WHERE l.subject_id = ? AND (l.series = ? OR l.series = 'both')
-                    ORDER BY l.order_index ASC, l.id DESC
+                    WHERE l.subject_id = ?
+                    ORDER BY l.id DESC
                 ");
-                $stmt->execute([$subject['id'], $series]);
+                $stmt->execute([$subject['id']]);
             }
             $lessons = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
-            // Fetch chapters for this subject (with PDF cours)
+            // Fetch chapters for this subject
             $stmtCh = $db->prepare("
-                SELECT id, title, description, order_index, pdf_url
+                SELECT id, title, series
                 FROM chapters
-                WHERE subject_id = ? AND (series = ? OR series = 'both')
-                ORDER BY order_index ASC, id ASC
+                WHERE subject_id = ? AND JSON_CONTAINS(series, JSON_QUOTE(?))
+                ORDER BY id ASC
             ");
-            $stmtCh->execute([$subject['id'], $series]);
+            $stmtCh->execute([$subject['id'], (string)(int)$series]);
             $chapters = $stmtCh->fetchAll(\PDO::FETCH_ASSOC);
 
             // Fetch revision sheets for this subject
@@ -131,7 +130,6 @@ class CoursesController {
             
             $totalProgress = 0;
             $processedLessons = array_map(function($l) use (&$totalProgress) {
-                $l['reference_links'] = json_decode($l['reference_links'] ?? '[]', true) ?: [];
                 $l['progress'] = (int)($l['progress_percent'] ?? 0);
                 $totalProgress += $l['progress'];
                 return $l;
@@ -184,10 +182,10 @@ class CoursesController {
                    (SELECT CASE WHEN status = 'completed' THEN 1 ELSE 0 END FROM quiz_progress WHERE user_id = :user_id AND quiz_id = q.id LIMIT 1) as is_completed
             FROM quizzes q
             JOIN subjects s ON q.subject_id = s.id
-            WHERE (q.series = :series OR q.series = 'both')
+            WHERE JSON_CONTAINS(q.series, :series)
             ORDER BY q.id DESC
         ");
-        $stmt->execute(['series' => $series, 'user_id' => $userId]);
+        $stmt->execute(['series' => (int)$series, 'user_id' => $userId]);
         $quizzes = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         
         // Convert to boolean for frontend convenience
@@ -244,10 +242,10 @@ class CoursesController {
             $stmt = $db->prepare("
                 SELECT id, title, description, pdf_url, created_at
                 FROM resumes
-                WHERE subject_id = ? AND (series = ? OR series = 'both')
+                WHERE subject_id = ? AND JSON_CONTAINS(series, ?)
                 ORDER BY id DESC
             ");
-            $stmt->execute([$subject['id'], $series]);
+            $stmt->execute([$subject['id'], (string)(int)$series]);
             $subject['resumes'] = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
             // Keep revision sheets too
@@ -263,5 +261,33 @@ class CoursesController {
         }
 
         $this->jsonResponse(['subjects' => $subjects]);
+    }
+
+    // GET /courses/exercises?series=C
+    public function exercises() {
+        $series = $_GET['series'] ?? 'C';
+        $token = \App\Utils\JWT::getBearerToken();
+        $payload = \App\Utils\JWT::decode($token ?: '', JWT_SECRET);
+        $userId = $payload ? $payload['user_id'] : 0;
+
+        $db = \App\Core\Database::getInstance()->getConnection();
+        
+        $sql = "
+            SELECT e.id, e.title, e.description, e.difficulty, e.type, e.pdf_path, e.subject_id, s.name as subject, e.series,
+                   (SELECT CASE WHEN status = 'completed' THEN 1 ELSE 0 END FROM exercise_progress WHERE user_id = :user_id AND exercise_id = e.id LIMIT 1) as is_completed
+            FROM exercises e 
+            JOIN subjects s ON e.subject_id = s.id
+            WHERE JSON_CONTAINS(e.series, :series)
+            ORDER BY e.id DESC
+        ";
+        $stmt = $db->prepare($sql);
+        $stmt->execute(['series' => (int)$series, 'user_id' => $userId]);
+        $exercises = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        foreach ($exercises as &$ex) {
+            $ex['is_completed'] = (bool)$ex['is_completed'];
+        }
+
+        $this->jsonResponse(['success' => true, 'exercises' => $exercises]);
     }
 }

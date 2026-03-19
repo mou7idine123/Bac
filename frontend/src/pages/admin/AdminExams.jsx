@@ -10,7 +10,7 @@ const BACKEND_URL = 'http://localhost:8000';
 const EMPTY_FORM = {
     id: null,
     subject_id: '',
-    series: 'C',
+    series: [],
     year: new Date().getFullYear(),
     session: 'normale',
     solution_content: ''
@@ -18,10 +18,11 @@ const EMPTY_FORM = {
 
 export default function AdminExams() {
     const [exams, setExams] = useState([]);
+    const [seriesList, setSeriesList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [search, setSearch] = useState('');
-    const [selectedSeries, setSelectedSeries] = useState('C');
+    const [selectedSeries, setSelectedSeries] = useState('');
     const [filterSubject, setFilterSubject] = useState('Tous');
 
     // View state: 'list' | 'add' | 'edit'
@@ -35,20 +36,40 @@ export default function AdminExams() {
     const [pdfStatement, setPdfStatement] = useState(null);
     const [pdfCorrection, setPdfCorrection] = useState(null);
     const [existingStatement, setExistingStatement] = useState(null);
-    const [existingCorrection, setExistingCorrection] = useState(null);
-    const [subjectsLoading, setSubjectsLoading] = useState(false);
+    // ── Fetch all ──────────────────────────────────────────────────
+    useEffect(() => {
+        fetchInitialData();
+    }, []);
+
+    const fetchInitialData = async () => {
+        setLoading(true);
+        const token = localStorage.getItem('bac_token');
+        try {
+            const resS = await fetch(`${API_BASE_URL}/admin/series`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const dataS = await resS.json();
+            if (dataS.success) {
+                setSeriesList(dataS.series);
+                if (dataS.series.length > 0) {
+                    setSelectedSeries(dataS.series[0].id);
+                }
+            }
+        } catch { setError('Impossible de se connecter'); } finally { setLoading(false); }
+    };
 
     // Fetch subjects whenever the active series changes (either list filter or form)
     useEffect(() => {
-        const seriesToFetch = (view === 'add' || view === 'edit') ? formData.series : selectedSeries;
-        if (seriesToFetch) {
-            fetchSubjects(seriesToFetch);
+        const seriesArr = (view === 'add' || view === 'edit') ? formData.series : [selectedSeries];
+        if (seriesArr && seriesArr.length > 0) {
+            // Fetch subjects for the first selected series as a baseline
+            fetchSubjects(seriesArr[0]);
         }
     }, [selectedSeries, formData.series, view]);
 
     useEffect(() => {
-        fetchExams(selectedSeries);
-        setFilterSubject('Tous');
+        if (selectedSeries) {
+            fetchExams(selectedSeries);
+            setFilterSubject('Tous');
+        }
     }, [selectedSeries]);
 
     const fetchExams = async (series) => {
@@ -106,10 +127,18 @@ export default function AdminExams() {
     };
 
     const handleEdit = (exam) => {
+        let seriesArr = [];
+        try {
+            seriesArr = typeof exam.series === 'string' ? JSON.parse(exam.series) : (exam.series || []);
+        } catch (e) {
+            seriesArr = [exam.series];
+        }
+        if (!Array.isArray(seriesArr)) seriesArr = [seriesArr];
+
         setFormData({
             id: exam.id,
             subject_id: exam.subject_id,
-            series: exam.series,
+            series: seriesArr,
             year: exam.year,
             session: exam.session,
             solution_content: exam.solution_content || ''
@@ -120,7 +149,7 @@ export default function AdminExams() {
     };
 
     const resetForm = () => {
-        setFormData(EMPTY_FORM);
+        setFormData({ ...EMPTY_FORM, series: seriesList.map(s => s.id) });
         setPdfStatement(null);
         setPdfCorrection(null);
         setExistingStatement(null);
@@ -135,7 +164,11 @@ export default function AdminExams() {
 
         const body = new FormData();
         Object.keys(formData).forEach(key => {
-            if (formData[key] !== null) body.append(key, formData[key]);
+            if (key === 'series') {
+                formData.series.forEach(s => body.append('series[]', s));
+            } else if (formData[key] !== null) {
+                body.append(key, formData[key]);
+            }
         });
 
         if (pdfStatement) body.append('pdf_statement', pdfStatement);
@@ -208,12 +241,23 @@ export default function AdminExams() {
                                     {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
                             </div>
-                            <div style={{ flex: 1, minWidth: '150px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <label style={lbl}>Série</label>
-                                <select value={formData.series} onChange={e => setFormData({ ...formData, series: e.target.value })} style={sel} required>
-                                    <option value="C">Série C</option>
-                                    <option value="D">Série D</option>
-                                </select>
+                            <div style={{ flex: 1, minWidth: '150px', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                                <label style={lbl}>Filières</label>
+                                <div style={{ display: 'flex', gap: '1rem', background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', flexWrap: 'wrap' }}>
+                                    {seriesList.map(s => (
+                                        <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', color: '#334155', fontWeight: 500 }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.series.includes(s.id)}
+                                                onChange={() => {
+                                                    const newSeries = formData.series.includes(s.id) ? formData.series.filter(curr => curr !== s.id) : [...formData.series, s.id];
+                                                    setFormData({ ...formData, series: newSeries });
+                                                }}
+                                            />
+                                            Série {s.name}
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
@@ -304,9 +348,9 @@ export default function AdminExams() {
                     </select>
 
                     <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.25rem', borderRadius: '8px' }}>
-                        {['C', 'D'].map(s => (
-                            <button key={s} onClick={() => setSelectedSeries(s)} style={{ padding: '0.4rem 1rem', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', background: selectedSeries === s ? 'white' : 'transparent', color: selectedSeries === s ? '#4f7af8' : '#64748b', boxShadow: selectedSeries === s ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
-                                Série {s}
+                        {seriesList.map(s => (
+                            <button key={s.id} onClick={() => setSelectedSeries(s.id)} style={{ padding: '0.4rem 1rem', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', background: parseInt(selectedSeries) === s.id ? 'white' : 'transparent', color: parseInt(selectedSeries) === s.id ? '#4f7af8' : '#64748b', boxShadow: parseInt(selectedSeries) === s.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
+                                Série {s.name}
                             </button>
                         ))}
                     </div>
@@ -342,7 +386,25 @@ export default function AdminExams() {
                                     </td>
                                     <td style={{ padding: '1rem 1.5rem' }}>
                                         <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{ex.subject}</div>
-                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Série {ex.series}</div>
+                                        <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                                            {(() => {
+                                                let seriesArr = [];
+                                                try {
+                                                    seriesArr = typeof ex.series === 'string' ? JSON.parse(ex.series) : (ex.series || []);
+                                                } catch (e) {
+                                                    seriesArr = ex.series === 'both' ? ['C', 'D'] : [ex.series];
+                                                }
+                                                if (!Array.isArray(seriesArr)) seriesArr = [seriesArr];
+                                                return seriesArr.map(sid => {
+                                                    const sObj = seriesList.find(sl => sl.id === parseInt(sid));
+                                                    return (
+                                                        <span key={sid} style={{ display: 'inline-block', padding: '0.15rem 0.4rem', borderRadius: '4px', background: '#e0e7ff', color: '#4f46e5', fontSize: '0.6rem', fontWeight: 800 }}>
+                                                            SÉRIE {sObj ? sObj.name : sid}
+                                                        </span>
+                                                    );
+                                                });
+                                            })()}
+                                        </div>
                                     </td>
                                     <td style={{ padding: '1rem 1.5rem' }}>
                                         <div style={{ display: 'flex', gap: '0.5rem' }}>

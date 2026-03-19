@@ -96,6 +96,52 @@ class AuthController {
         $this->jsonResponse(['user' => $user]);
     }
 
+    // POST /auth/update
+    public function update() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $token = JWT::getBearerToken();
+        if (!$token) {
+            $this->jsonResponse(['error' => 'Non autorisé'], 401);
+        }
+
+        $payload = JWT::decode($token, JWT_SECRET);
+        if (!$payload || !isset($payload['user_id'])) {
+            $this->jsonResponse(['error' => 'Token invalide ou expiré'], 401);
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        // Filter out email and role - they cannot be updated through this endpoint
+        $updateData = [];
+        if (isset($input['first_name'])) $updateData['first_name'] = $input['first_name'];
+        if (isset($input['last_name'])) $updateData['last_name'] = $input['last_name'];
+        if (isset($input['series'])) $updateData['series'] = $input['series'];
+        if (!empty($input['password'])) $updateData['password'] = $input['password'];
+
+        if (empty($updateData)) {
+            $this->jsonResponse(['error' => 'Aucune donnée à mettre à jour'], 400);
+        }
+
+        if ($this->userModel->updateProfile($payload['user_id'], $updateData)) {
+            $updatedUser = $this->userModel->findById($payload['user_id']);
+            $this->jsonResponse([
+                'message' => 'Profil mis à jour avec succès',
+                'user' => $updatedUser
+            ]);
+        } else {
+            $this->jsonResponse(['error' => 'Erreur lors de la mise à jour du profil'], 500);
+        }
+    }
+
+    // GET /auth/series
+    public function series() {
+        $stmt = $this->userModel->getDb()->query("SELECT * FROM series ORDER BY id ASC");
+        $this->jsonResponse(['success' => true, 'series' => $stmt->fetchAll(\PDO::FETCH_ASSOC)]);
+    }
+
     private function generateToken($user) {
         $payload = [
             'iss' => APP_URL,

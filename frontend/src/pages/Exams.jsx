@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Download, CheckCircle, Circle, Eye, Search, AlertCircle } from 'lucide-react';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth } from '../context/AuthContext';
-import PdfModal from '../components/PdfModal';
+import FileViewer from '../components/FileViewer';
 
 const BACKEND_URL = 'http://localhost:8000';
 
@@ -293,9 +293,8 @@ export default function Exams() {
       )}
 
       {viewerPdf && (
-        <PdfModal
-          url={viewerPdf.url}
-          title={viewerPdf.title}
+        <FileViewer
+          file={{ nom: viewerPdf.title, chemin_fichier: viewerPdf.url }}
           onClose={() => setViewerPdf(null)}
         />
       )}

@@ -14,54 +14,63 @@ import { useAuth } from '../context/AuthContext';
 
 const CONFIG = {
   app: {
-    name:       'PrepBac',
-    badge:      'IA',
-    tagline:    'Réussissez votre Baccalauréat avec l\'IA',
+    name: 'PrepBac',
+    badge: 'IA',
+    tagline: 'Réussissez votre Baccalauréat avec l\'IA',
     taglineKey: 'Baccalauréat',           // mot mis en surbrillance
-    subline:    'La plateforme d\'excellence pour les élèves des séries C et D en Mauritanie.',
-    trustText:  'Données sécurisées · Accès immédiat · Sans engagement',
+    subline: 'La plateforme d\'excellence pour les élèves des séries C et D en Mauritanie.',
+    trustText: 'Données sécurisées · Accès immédiat · Sans engagement',
   },
 
+  symbols: [
+    { char: 'π', top: '12%', left: '8%', delay: '0s', size: '1.6rem' },
+    { char: '∑', top: '25%', right: '10%', delay: '0.7s', size: '1.4rem' },
+    { char: 'Δ', top: '60%', left: '6%', delay: '1.2s', size: '1.3rem' },
+    { char: '∞', bottom: '20%', right: '8%', delay: '0.4s', size: '1.5rem' },
+    { char: 'ε', top: '40%', right: '14%', delay: '1.8s', size: '1.2rem' },
+    { char: 'λ', bottom: '35%', left: '12%', delay: '0.9s', size: '1.4rem' },
+  ],
+
   icons: {
-    logo:        GraduationCap,
-    logoSize:    22,
+    logo: GraduationCap,
+    logoSize: 22,
     featureSize: 16,
-    statSize:    13,
-    inputSize:   15,
-    submitSize:  16,
-    trustSize:   13,
-    seriesSize:  18,
-    checkSize:   10,
+    statSize: 13,
+    inputSize: 15,
+    submitSize: 16,
+    trustSize: 13,
+    seriesSize: 18,
+    checkSize: 10,
   },
 
   tabs: [
-    { key: 'login',    label: 'Connexion'   },
+    { key: 'login', label: 'Connexion' },
     { key: 'register', label: 'Inscription' },
   ],
 
   login: {
-    title:    'Bon retour',
+    title: 'Bon retour',
     subtitle: 'Continuez votre préparation au Baccalauréat',
-    submit:   'Se connecter',
-    toggle:   'Nouveau sur PrepBac ?',
-    toggleCta:'S\'inscrire gratuitement',
+    submit: 'Se connecter',
+    toggle: 'Nouveau sur PrepBac ?',
+    toggleCta: 'S\'inscrire gratuitement',
   },
 
   register: {
-    title:    'Créer un compte',
+    title: 'Créer un compte',
     subtitle: 'Rejoignez des milliers d\'étudiants mauritaniens',
-    submit:   'Créer mon compte',
-    toggle:   'Déjà un compte ?',
-    toggleCta:'Se connecter',
+    submit: 'Créer mon compte',
+    toggle: 'Déjà un compte ?',
+    toggleCta: 'Se connecter',
   },
 
   fields: {
-    firstName:  { key: 'firstName', label: 'Prénom',        placeholder: 'Amadou',            type: 'text',     icon: User },
-    lastName:   { key: 'lastName',  label: 'Nom',           placeholder: 'Diallo',            type: 'text',     icon: User },
-    email:      { key: 'email',     label: 'Adresse email', placeholder: 'amadou@example.com', type: 'email',    icon: Mail },
-    password:   { key: 'password',  label: 'Mot de passe',  placeholder: '••••••••',           type: 'password', icon: Lock },
+    firstName: { key: 'firstName', label: 'Prénom', placeholder: 'Amadou', type: 'text', icon: User },
+    lastName: { key: 'lastName', label: 'Nom', placeholder: 'Diallo', type: 'text', icon: User },
+    email: { key: 'email', label: 'Adresse email', placeholder: 'amadou@example.com', type: 'email', icon: Mail },
+    password: { key: 'password', label: 'Mot de passe', placeholder: '••••••••', type: 'password', icon: Lock },
     forgotLink: 'Mot de passe oublié ?',
-    seriesLabel:'Choisissez votre série',
+    seriesLabel: 'Choisissez votre série',
     minPassword: 6,
   },
 
@@ -69,46 +78,32 @@ const CONFIG = {
 
   features: [
     {
-      icon:     BookOpen,
+      icon: BookOpen,
       gradient: 'linear-gradient(135deg,#4f7af8,#764ba2)',
-      glow:     'rgba(79,122,248,0.3)',
-      title:    'Cours Structurés',
-      desc:     'Tout le programme C & D, chapitre par chapitre',
+      glow: 'rgba(79,122,248,0.3)',
+      title: 'Cours Structurés',
+      desc: 'Tout le programme C & D, chapitre par chapitre',
     },
     {
-      icon:     Brain,
+      icon: Brain,
       gradient: 'linear-gradient(135deg,#a18cd1,#fbc2eb)',
-      glow:     'rgba(161,140,209,0.3)',
-      title:    'IA Personnalisée',
-      desc:     'Assistant disponible 24/7, adapté à votre niveau',
+      glow: 'rgba(161,140,209,0.3)',
+      title: 'IA Personnalisée',
+      desc: 'Assistant disponible 24/7, adapté à votre niveau',
     },
     {
-      icon:     BarChart3,
+      icon: BarChart3,
       gradient: 'linear-gradient(135deg,#43e97b,#38f9d7)',
-      glow:     'rgba(67,233,123,0.3)',
-      title:    'Quiz Intelligents',
-      desc:     'Exercices adaptatifs et simulation du Bac',
+      glow: 'rgba(67,233,123,0.3)',
+      title: 'Quiz Intelligents',
+      desc: 'Exercices adaptatifs et simulation du Bac',
     },
   ],
 
   stats: [
-    { icon: Users,      value: '5 000+', label: 'Étudiants actifs' },
-    { icon: TrendingUp, value: '98 %',   label: 'Taux de réussite' },
-    { icon: Award,      value: 'Top 1',  label: 'Plateforme Bac'   },
-  ],
-
-  series: [
-    { id: 'C', label: 'Série C', sub: 'Mathématiques',      icon: Ruler,        color: '#4f7af8' },
-    { id: 'D', label: 'Série D', sub: 'Sciences Naturelles', icon: FlaskConical, color: '#43e97b' },
-  ],
-
-  symbols: [
-    { char: 'π', top: '12%',    left:  '8%',   delay: '0s',   size: '1.6rem' },
-    { char: '∑', top: '25%',    right: '10%',  delay: '0.7s', size: '1.4rem' },
-    { char: 'Δ', top: '60%',    left:  '6%',   delay: '1.2s', size: '1.3rem' },
-    { char: '∞', bottom: '20%', right: '8%',   delay: '0.4s', size: '1.5rem' },
-    { char: 'ε', top: '40%',    right: '14%',  delay: '1.8s', size: '1.2rem' },
-    { char: 'λ', bottom: '35%', left:  '12%',  delay: '0.9s', size: '1.4rem' },
+    { icon: Users, value: '5 000+', label: 'Étudiants actifs' },
+    { icon: TrendingUp, value: '98 %', label: 'Taux de réussite' },
+    { icon: Award, value: 'Top 1', label: 'Plateforme Bac' },
   ],
 
   cardInterval: 2800,  // ms
@@ -122,15 +117,16 @@ export default function Auth() {
   const { login, register, user } = useAuth();
   const navigate = useNavigate();
 
-  const [isLogin, setIsLogin]       = useState(true);
-  const [showPwd, setShowPwd]       = useState(false);
-  const [loading, setLoading]       = useState(false);
-  const [apiError, setApiError]     = useState('');
+  const [isLogin, setIsLogin] = useState(true);
+  const [showPwd, setShowPwd] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState('');
   const [activeCard, setActiveCard] = useState(0);
+  const [seriesList, setSeriesList] = useState([]);
 
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', password: '',
-    series: CONFIG.series[0].id,
+    series: '',
   });
 
   useEffect(() => {
@@ -138,8 +134,22 @@ export default function Auth() {
       () => setActiveCard(c => (c + 1) % CONFIG.features.length),
       CONFIG.cardInterval,
     );
+    fetchSeries();
     return () => clearInterval(t);
   }, []);
+
+  const fetchSeries = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/series`);
+      const data = await res.json();
+      if (data.success) {
+        setSeriesList(data.series);
+        if (data.series.length > 0) {
+          setForm(f => ({ ...f, series: data.series[0].id }));
+        }
+      }
+    } catch { }
+  };
 
   if (user) return <Navigate to={user.role === 'admin' ? '/admin' : '/'} replace />;
 
@@ -172,7 +182,7 @@ export default function Auth() {
 
   /* Raccourcis pour la config en fonction du mode */
   const mode = isLogin ? CONFIG.login : CONFIG.register;
-  const { app, icons, fields, tabs, divider, features, stats, series, symbols } = CONFIG;
+  const { app, icons, fields, tabs, divider, features, stats, symbols } = CONFIG;
   const LogoIcon = icons.logo;
 
   /* Découpage du tagline pour la mise en surbrillance */
@@ -364,28 +374,33 @@ export default function Auth() {
               <div className="auth-field">
                 <label className="auth-field-label">{fields.seriesLabel}</label>
                 <div className="auth-series-grid">
-                  {series.map(({ id, label, sub, icon: SerieIcon, color }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, series: id }))}
-                      className={`auth-series-btn${form.series === id ? ' auth-series-btn--active' : ''}`}
-                      style={{ '--sc': color, borderColor: form.series === id ? color : undefined }}
-                    >
-                      <SerieIcon
-                        size={icons.seriesSize}
-                        className="auth-series-icon"
-                        style={{ color: form.series === id ? color : undefined }}
-                      />
-                      <span className="auth-series-label">{label}</span>
-                      <span className="auth-series-sub">{sub}</span>
-                      {form.series === id && (
-                        <div className="auth-series-check">
-                          <Check size={icons.checkSize} />
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                  {seriesList.map((s) => {
+                    const color = s.name === 'D' ? '#43e97b' : '#4f7af8';
+                    const sub = s.name === 'C' ? 'Mathématiques' : 'Sciences Naturelles';
+                    const SerieIcon = s.name === 'C' ? Ruler : FlaskConical;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, series: s.id }))}
+                        className={`auth-series-btn${form.series === s.id ? ' auth-series-btn--active' : ''}`}
+                        style={{ '--sc': color, borderColor: form.series === s.id ? color : undefined }}
+                      >
+                        <SerieIcon
+                          size={icons.seriesSize}
+                          className="auth-series-icon"
+                          style={{ color: form.series === s.id ? color : undefined }}
+                        />
+                        <span className="auth-series-label">Série {s.name}</span>
+                        <span className="auth-series-sub">{sub}</span>
+                        {form.series === s.id && (
+                          <div className="auth-series-check">
+                            <Check size={icons.checkSize} />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -161,11 +161,27 @@ export default function Dashboard() {
   const fetchResumes = async () => {
     try {
       const token = localStorage.getItem('bac_token');
-      const res = await fetch(`${API_BASE_URL}/admin/chapters?series=${seriesKey}`, {
+      const res = await fetch(`${API_BASE_URL}/courses/resumes?series=${seriesKey}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (data.chapters) setResumes(data.chapters.filter(c => c.resume_pdf_url));
+      if (data.subjects) {
+        let allResumes = [];
+        data.subjects.forEach(sub => {
+          if (sub.resumes) {
+            sub.resumes.forEach(r => {
+              if (r.pdf_url) allResumes.push({ ...r, subject_name: sub.name, resume_pdf_url: r.pdf_url });
+            });
+          }
+          if (sub.sheets) {
+            sub.sheets.forEach(s => {
+              if (s.pdf_url) allResumes.push({ ...s, subject_name: sub.name, resume_pdf_url: s.pdf_url });
+            });
+          }
+        });
+        allResumes.sort((a, b) => (b.id || 0) - (a.id || 0));
+        setResumes(allResumes);
+      }
     } catch (err) { }
   };
 

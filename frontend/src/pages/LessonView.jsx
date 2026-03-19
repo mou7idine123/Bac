@@ -24,6 +24,27 @@ function splitIntoPages(html) {
     return [html];
 }
 
+/**
+ * Strips full HTML document boilerplate (<html>, <head>, <body>) and returns
+ * only the renderable inner content. Prevents nested <html> tags inside React.
+ */
+function sanitizeHtml(html) {
+    if (!html) return '';
+    // If it contains a <body> tag, extract only its contents
+    const bodyMatch = html.match(/<body[^>]*>([\/\s\S]*?)<\/body>/i);
+    if (bodyMatch) return bodyMatch[1].trim();
+    // If it starts with <!DOCTYPE or <html, strip those wrappers
+    if (/^\s*<!DOCTYPE/i.test(html) || /^\s*<html/i.test(html)) {
+        return html
+            .replace(/^\s*<!DOCTYPE[^>]*>/i, '')
+            .replace(/<\/?html[^>]*>/gi, '')
+            .replace(/<head[\s\S]*?<\/head>/gi, '')
+            .replace(/<\/?body[^>]*>/gi, '')
+            .trim();
+    }
+    return html;
+}
+
 export default function LessonView() {
     const { lessonId } = useParams();
     const navigate = useNavigate();
@@ -47,7 +68,8 @@ export default function LessonView() {
             const data = await res.json();
             if (data.lesson) {
                 setLesson(data.lesson);
-                const splitPages = splitIntoPages(data.lesson.content);
+                const cleanContent = sanitizeHtml(data.lesson.content);
+                const splitPages = splitIntoPages(cleanContent);
                 setPages(splitPages);
                 setCurrentPage(0);
             } else {

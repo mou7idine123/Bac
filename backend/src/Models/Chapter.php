@@ -13,18 +13,18 @@ class Chapter {
 
     public function getBySubject($subjectId, $series = null) {
         if ($series) {
-            $stmt = $this->db->prepare("SELECT * FROM chapters WHERE subject_id = :subject_id AND (series = :series OR series = 'both') ORDER BY order_index ASC");
-            $stmt->execute(['subject_id' => $subjectId, 'series' => $series]);
+            $stmt = $this->db->prepare("SELECT * FROM chapters WHERE subject_id = :subject_id AND JSON_CONTAINS(series, :series) ORDER BY id ASC");
+            $stmt->execute(['subject_id' => $subjectId, 'series' => (int)$series]);
         } else {
-            $stmt = $this->db->prepare("SELECT * FROM chapters WHERE subject_id = :subject_id ORDER BY order_index ASC");
+            $stmt = $this->db->prepare("SELECT * FROM chapters WHERE subject_id = :subject_id ORDER BY id ASC");
             $stmt->execute(['subject_id' => $subjectId]);
         }
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getLessonsByChapter($chapterId) {
-        $stmt = $this->db->prepare("SELECT * FROM lessons WHERE chapter_id = :chapter_id ORDER BY order_index ASC");
-        $stmt->execute(['chapter_id' => $chapterId]);
+    public function getLessonsBySubject($subjectId) {
+        $stmt = $this->db->prepare("SELECT * FROM lessons WHERE subject_id = :subject_id ORDER BY id DESC");
+        $stmt->execute(['subject_id' => $subjectId]);
         return $stmt->fetchAll();
     }
     

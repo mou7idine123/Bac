@@ -9,24 +9,45 @@ export default function AdminResumes() {
     const [subjects, setSubjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedSeriesFilter, setSelectedSeriesFilter] = useState('C');
+    const [selectedSeriesFilter, setSelectedSeriesFilter] = useState('');
+    const [seriesList, setSeriesList] = useState([]);
     const [search, setSearch] = useState('');
 
     const [isAdding, setIsAdding] = useState(false);
     const [pdfFile, setPdfFile] = useState(null);
     const [formLoading, setFormLoading] = useState(false);
     const [formError, setFormError] = useState('');
-    
     const [formData, setFormData] = useState({
         title: '',
         description: '',
         subject_id: '',
-        series: 'both'
+        series: []
     });
 
     useEffect(() => {
-        fetchResumes();
-        fetchSubjects();
+        fetchInitialData();
+    }, []);
+
+    const fetchInitialData = async () => {
+        setLoading(true);
+        const token = localStorage.getItem('bac_token');
+        try {
+            const resS = await fetch(`${API_BASE_URL}/admin/series`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const dataS = await resS.json();
+            if (dataS.success) {
+                setSeriesList(dataS.series);
+                if (dataS.series.length > 0) {
+                    setSelectedSeriesFilter(dataS.series[0].id);
+                }
+            }
+        } catch { setError('Impossible de se connecter'); } finally { setLoading(false); }
+    };
+
+    useEffect(() => {
+        if (selectedSeriesFilter) {
+            fetchResumes();
+            fetchSubjects();
+        }
     }, [selectedSeriesFilter]);
 
     const fetchResumes = async () => {
@@ -63,7 +84,20 @@ export default function AdminResumes() {
     };
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value, type, checked } = e.target;
+        if (type === 'checkbox' && name === 'series') {
+            const current = [...formData.series];
+            const valInt = parseInt(value);
+            if (checked) {
+                if (!current.includes(valInt)) current.push(valInt);
+            } else {
+                const index = current.indexOf(valInt);
+                if (index > -1) current.splice(index, 1);
+            }
+            setFormData({ ...formData, series: current });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -81,7 +115,7 @@ export default function AdminResumes() {
             fd.append('title', formData.title);
             fd.append('description', formData.description);
             fd.append('subject_id', formData.subject_id);
-            fd.append('series', formData.series);
+            formData.series.forEach(s => fd.append('series[]', s));
             if (pdfFile) {
                 fd.append('pdf_file', pdfFile);
             }
@@ -95,7 +129,7 @@ export default function AdminResumes() {
 
             if (data.success) {
                 setIsAdding(false);
-                setFormData({ title: '', description: '', subject_id: '', series: 'both' });
+                setFormData({ title: '', description: '', subject_id: '', series: seriesList.map(s => s.id) });
                 setPdfFile(null);
                 fetchResumes();
             } else {
@@ -127,10 +161,12 @@ export default function AdminResumes() {
         }
     };
 
-    const filteredResumes = resumes.filter(r =>
-        r.title.toLowerCase().includes(search.toLowerCase()) ||
-        r.subject_name.toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredResumes = resumes.filter(r => {
+        const matchSearch = r.title.toLowerCase().includes(search.toLowerCase()) ||
+            r.subject_name.toLowerCase().includes(search.toLowerCase());
+
+        return matchSearch;
+    });
 
     if (isAdding) {
         return (
@@ -155,12 +191,15 @@ export default function AdminResumes() {
                                 </select>
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.4rem' }}>Série</label>
-                                <select name="series" value={formData.series} onChange={handleChange} style={{ width: '100%', padding: '0.7rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white' }}>
-                                    <option value="both">Toutes (C & D)</option>
-                                    <option value="C">Série C uniquement</option>
-                                    <option value="D">Série D uniquement</option>
-                                </select>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.4rem' }}>Filières</label>
+                                <div style={{ display: 'flex', gap: '1rem', background: 'white', padding: '0.7rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', flexWrap: 'wrap' }}>
+                                    {seriesList.map(s => (
+                                        <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', color: '#334155', fontWeight: 500 }}>
+                                            <input type="checkbox" name="series" value={s.id} checked={formData.series.includes(s.id)} onChange={handleChange} />
+                                            Série {s.name}
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                         <div>
@@ -192,8 +231,7 @@ export default function AdminResumes() {
                 <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '1rem', alignItems: 'center', background: '#f8fafc' }}>
                     <Filter size={16} color="#94a3b8" />
                     <select value={selectedSeriesFilter} onChange={(e) => setSelectedSeriesFilter(e.target.value)} style={{ padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: 600 }}>
-                        <option value="C">Série C</option>
-                        <option value="D">Série D</option>
+                        {seriesList.map(s => <option key={s.id} value={s.id}>Série {s.name}</option>)}
                     </select>
                     <div style={{ position: 'relative', flex: 1 }}>
                         <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
@@ -221,7 +259,25 @@ export default function AdminResumes() {
                                     <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                         <td style={{ padding: '1rem 1.5rem' }}>
                                             <div style={{ fontWeight: 700, color: '#0f172a' }}>{r.title}</div>
-                                            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Série: {r.series}</div>
+                                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                                                {(() => {
+                                                    let seriesArr = [];
+                                                    try {
+                                                        seriesArr = typeof r.series === 'string' ? JSON.parse(r.series) : (r.series || []);
+                                                    } catch (e) {
+                                                        seriesArr = r.series === 'both' ? ['C', 'D'] : [r.series];
+                                                    }
+                                                    if (!Array.isArray(seriesArr)) seriesArr = [seriesArr];
+                                                    return seriesArr.map(sid => {
+                                                        const sObj = seriesList.find(sl => sl.id === parseInt(sid));
+                                                        return (
+                                                            <span key={sid} style={{ display: 'inline-block', padding: '0.15rem 0.4rem', borderRadius: '4px', background: '#e0e7ff', color: '#4f46e5', fontSize: '0.6rem', fontWeight: 800 }}>
+                                                                {sObj ? sObj.name : sid}
+                                                            </span>
+                                                        );
+                                                    });
+                                                })()}
+                                            </div>
                                         </td>
                                         <td style={{ padding: '1rem 1.5rem' }}>
                                             <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: '#f1f5f9', borderRadius: '4px', fontWeight: 600 }}>{r.subject_name}</span>

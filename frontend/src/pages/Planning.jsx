@@ -7,10 +7,7 @@ import {
 import ProgressRing from '../components/ProgressRing';
 import { API_BASE_URL } from '../apiConfig';
 
-const SUBJECTS_BY_SERIES = {
-    C: ['Maths', 'Physique', 'Chimie', 'Philosophie'],
-    D: ['Sciences Nat.', 'Maths', 'Physique', 'Chimie', 'Philosophie']
-};
+
 
 export default function Planning() {
     const { user } = useAuth();
@@ -30,10 +27,20 @@ export default function Planning() {
     const [formSubjects, setFormSubjects] = useState([]);
     const [generating, setGenerating] = useState(false);
 
-    // Initialize form subjects based on user series
+    // Fetch real subjects from the API for the user's series
     useEffect(() => {
         if (user?.series) {
-            setFormSubjects(SUBJECTS_BY_SERIES[user.series] || []);
+            const token = localStorage.getItem('bac_token');
+            fetch(`${API_BASE_URL}/courses/library?series=${user.series}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.subjects) {
+                        setFormSubjects(data.subjects.map(s => s.name));
+                    }
+                })
+                .catch(() => { });
         }
     }, [user]);
 
@@ -161,7 +168,7 @@ export default function Planning() {
     // VIEW: NO PLAN SET YET (AI GENERATOR FORM)
     // =========================================================================
     if (!hasPlan) {
-        const allSubjects = SUBJECTS_BY_SERIES[user?.series || 'C'] || [];
+        const allSubjects = formSubjects; // Already populated from API
         return (
             <div>
                 <div className="page-hero">

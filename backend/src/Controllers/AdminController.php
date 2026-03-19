@@ -168,13 +168,12 @@ class AdminController {
         // Case 1: GET single lesson
         if ($id && $method === 'GET') {
             try {
-                $stmt = $this->db->prepare("SELECT l.*, s.name as subject, l.series as series FROM lessons l JOIN subjects s ON l.subject_id = s.id WHERE l.id = ?");
+                $stmt = $this->db->prepare("SELECT l.*, s.name as subject FROM lessons l JOIN subjects s ON l.subject_id = s.id WHERE l.id = ?");
                 $stmt->execute([$id]);
                 $lesson = $stmt->fetch(PDO::FETCH_ASSOC);
                 if (!$lesson) {
                     $this->jsonResponse(['error' => 'Leçon introuvable'], 404);
                 }
-                $lesson['reference_links'] = json_decode($lesson['reference_links'] ?? '[]', true);
                 $this->jsonResponse(['success' => true, 'lesson' => $lesson]);
             } catch (\Exception $e) {
                 $this->jsonResponse(['error' => $e->getMessage()], 500);
@@ -189,9 +188,8 @@ class AdminController {
         else if ($method === 'POST') {
             $subjectId = trim((string)($input['subject_id'] ?? ''));
             $title     = trim((string)($input['title'] ?? ''));
+            $type      = trim((string)($input['type'] ?? ''));
             $description = trim((string)($input['description'] ?? ''));
-            $series    = trim((string)($input['series'] ?? 'both'));
-            $order     = (int)($input['order_index'] ?? 0);
 
             if ($subjectId === '' || $title === '') {
                 $this->jsonResponse(['error' => 'Veuillez remplir les champs obligatoires (Matière, Titre)'], 400);
@@ -209,19 +207,9 @@ class AdminController {
                 }
             }
 
-            // PDF is optional — course can exist without a file
-
             try {
-                // Ensure pdf_url column exists in lessons table
-                $stmt = $this->db->prepare("INSERT INTO lessons (subject_id, series, title, description, content, pdf_url, reference_links, order_index) VALUES (?, ?, ?, ?, '', ?, '[]', ?)");
-                $stmt->execute([
-                    $subjectId,
-                    $series,
-                    $title,
-                    $description,
-                    $pdfUrl,
-                    $order
-                ]);
+                $stmt = $this->db->prepare("INSERT INTO lessons (subject_id, title, type, description, content, pdf_url) VALUES (?, ?, ?, ?, '', ?)");
+                $stmt->execute([$subjectId, $title, $type, $description, $pdfUrl]);
 
                 $this->jsonResponse(['success' => true, 'message' => 'Cours ajouté avec succès', 'id' => $this->db->lastInsertId()]);
             } catch (\Exception $e) {
@@ -231,15 +219,15 @@ class AdminController {
 
         if ($method === 'GET') {
             try {
-                $sql = "SELECT l.id, l.title, l.created_at as date, 'published' as status,
-                               s.name as subject, l.series as series
+                $sql = "SELECT l.id, l.title, l.type, s.name as subject
                         FROM lessons l
                         JOIN subjects s ON l.subject_id = s.id
-                        ORDER BY l.created_at DESC";
+                        ORDER BY l.id DESC";
                 $stmt = $this->db->query($sql);
                 $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 foreach ($courses as &$c) {
-                    $c['date'] = date('Y-m-d', strtotime($c['date']));
+                    $c['status'] = 'published';
+                    $c['date'] = date('Y-m-d'); // Fallback since created_at is gone
                 }
                 $this->jsonResponse(['success' => true, 'courses' => $courses]);
             } catch (\Exception $e) {
@@ -250,9 +238,8 @@ class AdminController {
 
     private function updateCourseFromJson($id, $input) {
         $title      = trim($input['title'] ?? '');
+        $type       = trim($input['type'] ?? '');
         $description= trim($input['description'] ?? '');
-        $series     = trim($input['series'] ?? 'both');
-        $order      = (int)($input['order_index'] ?? 0);
         $subjectId  = trim($input['subject_id'] ?? '');
 
         if ($title === '') {
@@ -271,12 +258,11 @@ class AdminController {
         }
 
         try {
-            // Update lesson including pdf_url and description
-            $stmt = $this->db->prepare("UPDATE lessons SET title=?, description=?, pdf_url=?, series=?, order_index=? WHERE id=?");
-            $stmt->execute([$title, $description, $pdfUrl, $series, $order, $id]);
-            $this->jsonResponse(['success' => true, 'message' => 'Leçon mise à jour.']);
+            $stmt = $this->db->prepare("UPDATE lessons SET title=?, type=?, description=?, pdf_url=? WHERE id=?");
+            $stmt->execute([$title, $type, $description, $pdfUrl, $id]);
+            $this->jsonResponse(['success' => true, 'message' => 'Cours mis à jour avec succès']);
         } catch (\Exception $e) {
-            $this->jsonResponse(['error' => $e->getMessage()], 500);
+            $this->jsonResponse(['error' => 'Erreur lors de la modification: ' . $e->getMessage()], 500);
         }
     }
 
@@ -288,60 +274,78 @@ class AdminController {
         $id = $id ?? ($_GET['id'] ?? null);
 
         if ($method === 'GET') {
-            // L'administrateur voit uniquement les matières de la filière C par défaut.
-            $series = $_GET['series'] ?? 'C';
-            $stmt = $this->db->prepare("
-                SELECT s.id, s.name, s.description, s.icon, s.color_theme, sr.name as series_name
-                FROM subjects s
-                JOIN series_subjects ss ON s.id = ss.subject_id
-                JOIN series sr ON ss.series_id = sr.id
-                WHERE sr.name = :series
-                ORDER BY s.id DESC
-            ");
-            $stmt->execute(['series' => $series]);
+            $series = $_GET['series'] ?? null;
+            
+            if ($series) {
+                $stmt = $this->db->prepare("
+                    SELECT s.id, s.name, s.description, s.color_theme, ss.coefficient 
+                    FROM subjects s
+                    JOIN subject_series ss ON s.id = ss.subject_id
+                    WHERE ss.series_id = :series
+                    ORDER BY s.id DESC
+                ");
+                $stmt->execute(['series' => (int)$series]);
+            } else {
+                $stmt = $this->db->query("SELECT id, name, description, color_theme FROM subjects ORDER BY name ASC");
+            }
             $subjects = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Fallback: If no subjects found for specific series, try getting all anyway 
-            // to avoid empty dropdowns during testing/dev
-            if (empty($subjects)) {
-                $subjects = $this->db->query("SELECT id, name FROM subjects ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
-                foreach($subjects as &$s) { $s['series_name'] = 'All'; }
+            // Attach series & coefficients to each subject for the UI form
+            foreach ($subjects as &$subject) {
+                $stmt = $this->db->prepare("SELECT series_id, coefficient FROM subject_series WHERE subject_id = ?");
+                $stmt->execute([$subject['id']]);
+                // Return an array mapping series_id => coefficient
+                $seriesMap = [];
+                foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $seriesMap[$row['series_id']] = (float)$row['coefficient'];
+                }
+                $subject['series_map'] = $seriesMap;
             }
 
             $this->jsonResponse(['success' => true, 'subjects' => $subjects, 'queried_series' => $series]);
         } 
-        else if ($method === 'POST') {
-            // La matière ajoutée sera associée uniquement à la filière sélectionnée.
+        else if ($method === 'POST' || $method === 'PUT') {
             $input = json_decode(file_get_contents('php://input'), true);
-            if (empty($input['name']) || empty($input['series'])) {
-                $this->jsonResponse(['error' => 'Nom et filière sont requis'], 400);
+            if (empty($input['name']) || empty($input['series_map'])) {
+                $this->jsonResponse(['error' => 'Nom et affectations de série sont requis'], 400);
             }
 
             try {
                 $this->db->beginTransaction();
                 
-                // Insert subject
-                $stmt = $this->db->prepare("INSERT INTO subjects (name, description, icon, color_theme) VALUES (?, ?, ?, ?)");
-                $stmt->execute([
-                    $input['name'],
-                    $input['description'] ?? '',
-                    $input['icon'] ?? 'BookOpen',
-                    $input['color_theme'] ?? '#667eea'
-                ]);
-                $subjectId = $this->db->lastInsertId();
+                if ($id) {
+                    // Update existing subject
+                    $stmt = $this->db->prepare("UPDATE subjects SET name = ?, description = ?, color_theme = ? WHERE id = ?");
+                    $stmt->execute([
+                        $input['name'],
+                        $input['description'] ?? '',
+                        $input['color_theme'] ?? '#667eea',
+                        $id
+                    ]);
+                    $subjectId = $id;
 
-                // Link to specific series
-                $stmtSeries = $this->db->prepare("SELECT id FROM series WHERE name = ?");
-                $stmtSeries->execute([$input['series']]);
-                $seriesId = $stmtSeries->fetchColumn();
+                    // Delete existing series pivot relations before inserting the fresh map
+                    $stmtDel = $this->db->prepare("DELETE FROM subject_series WHERE subject_id = ?");
+                    $stmtDel->execute([$subjectId]);
+                } else {
+                    // Insert new subject
+                    $stmt = $this->db->prepare("INSERT INTO subjects (name, description, color_theme) VALUES (?, ?, ?)");
+                    $stmt->execute([
+                        $input['name'],
+                        $input['description'] ?? '',
+                        $input['color_theme'] ?? '#667eea'
+                    ]);
+                    $subjectId = $this->db->lastInsertId();
+                }
 
-                if ($seriesId) {
-                    $stmtLink = $this->db->prepare("INSERT INTO series_subjects (series_id, subject_id) VALUES (?, ?)");
-                    $stmtLink->execute([$seriesId, $subjectId]);
+                // Insert into subject_series pivot table
+                $stmtPivot = $this->db->prepare("INSERT INTO subject_series (subject_id, series_id, coefficient) VALUES (?, ?, ?)");
+                foreach ($input['series_map'] as $seriesId => $coefficient) {
+                    $stmtPivot->execute([$subjectId, (int)$seriesId, (float)$coefficient]);
                 }
 
                 $this->db->commit();
-                $this->jsonResponse(['success' => true, 'message' => 'Matière ajoutée avec succès.']);
+                $this->jsonResponse(['success' => true, 'message' => $id ? 'Matière modifiée avec succès.' : 'Matière ajoutée avec succès.']);
             } catch (\Exception $e) {
                 $this->db->rollBack();
                 $this->jsonResponse(['error' => 'Erreur: ' . $e->getMessage()], 500);
@@ -368,69 +372,52 @@ class AdminController {
         $id = $id ?? ($_GET['id'] ?? null);
 
         if ($method === 'GET') {
+            $subjectId = $_GET['subject_id'] ?? null;
             $series = $_GET['series'] ?? 'C';
-            $stmt = $this->db->prepare("
-                SELECT c.id, c.title, c.order_index, c.subject_id, s.name as subject_name, c.series, c.pdf_url
-                FROM chapters c
-                JOIN subjects s ON c.subject_id = s.id
-                JOIN series_subjects ss ON s.id = ss.subject_id
-                JOIN series sr ON ss.series_id = sr.id
-                WHERE sr.name = :series
-                ORDER BY c.subject_id, c.order_index ASC, c.id DESC
-            ");
-            $stmt->execute(['series' => $series]);
+            
+            $sql = "SELECT c.id, c.title, c.subject_id, s.name as subject_name, c.series
+                    FROM chapters c
+                    JOIN subjects s ON c.subject_id = s.id";
+            
+            $params = [];
+            if ($subjectId) {
+                $sql .= " WHERE c.subject_id = :subject_id";
+                $params['subject_id'] = $subjectId;
+            } else if ($series && $series !== 'all') {
+                $sql .= " WHERE JSON_CONTAINS(c.series, :series)";
+                $params['series'] = json_encode((int)$series);
+            }
+            
+            $sql .= " ORDER BY c.id DESC";
+            
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
             $chapters = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $this->jsonResponse(['success' => true, 'chapters' => $chapters]);
         } 
         else if ($method === 'POST') {
-            $contentType = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
-            $input = $_POST;
-            if (stripos($contentType, 'application/json') !== false) {
-                $jsonBody = json_decode(file_get_contents('php://input'), true);
-                if (is_array($jsonBody)) $input = array_merge($input, $jsonBody);
-            }
+            $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
 
             if (empty($input['title']) || empty($input['subject_id'])) {
                 $this->jsonResponse(['error' => 'Titre et Matière sont requis'], 400);
             }
 
-            $pdfUrl = null;
-            if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK) {
-                $uploadDir = __DIR__ . '/../../public/uploads/chapters/';
-                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-                $filename = uniqid('resume_') . '_' . preg_replace('/[^a-zA-Z0-9.\-_]/', '', basename($_FILES['pdf_file']['name']));
-                if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $uploadDir . $filename)) {
-                    $pdfUrl = '/uploads/chapters/' . $filename;
-                }
-            }
-
             try {
-                // Determine if we're updating or inserting
                 if (!empty($input['id'])) {
-                    $sql = "UPDATE chapters SET title=?, subject_id=?, order_index=?, series=?";
-                    $params = [
-                        $input['title'],
-                        $input['subject_id'],
-                        $input['order_index'] ?? 0,
-                        $input['series'] ?? 'C'
-                    ];
-                    if ($pdfUrl) {
-                        $sql .= ", pdf_url=?";
-                        $params[] = $pdfUrl;
-                    }
-                    $sql .= " WHERE id=?";
-                    $params[] = $input['id'];
-                    $stmt = $this->db->prepare($sql);
-                    $stmt->execute($params);
-                    $this->jsonResponse(['success' => true, 'message' => 'Chapitre mis à jour.']);
-                } else {
-                    $stmt = $this->db->prepare("INSERT INTO chapters (title, subject_id, order_index, series, pdf_url) VALUES (?, ?, ?, ?, ?)");
+                    $stmt = $this->db->prepare("UPDATE chapters SET title=?, subject_id=?, series=? WHERE id=?");
                     $stmt->execute([
                         $input['title'],
                         $input['subject_id'],
-                        $input['order_index'] ?? 0,
-                        $input['series'] ?? 'C',
-                        $pdfUrl
+                        json_encode($input['series'] ?? []),
+                        $input['id']
+                    ]);
+                    $this->jsonResponse(['success' => true, 'message' => 'Chapitre mis à jour.']);
+                } else {
+                    $stmt = $this->db->prepare("INSERT INTO chapters (title, subject_id, series) VALUES (?, ?, ?)");
+                    $stmt->execute([
+                        $input['title'],
+                        $input['subject_id'],
+                        json_encode($input['series'] ?? [])
                     ]);
                     $this->jsonResponse(['success' => true, 'message' => 'Chapitre ajouté avec succès.']);
                 }
@@ -461,10 +448,10 @@ class AdminController {
                 SELECT r.id, r.title, r.description, r.pdf_url, r.series, r.created_at, s.name AS subject_name, r.subject_id
                 FROM resumes r
                 JOIN subjects s ON r.subject_id = s.id
-                WHERE (r.series = :series OR r.series = 'both')
+                WHERE JSON_CONTAINS(r.series, :series)
                 ORDER BY r.subject_id, r.id DESC
             ");
-            $stmt->execute(['series' => $series]);
+            $stmt->execute(['series' => json_encode((int)$series)]);
             $this->jsonResponse(['success' => true, 'resumes' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         }
         else if ($method === 'POST') {
@@ -489,7 +476,7 @@ class AdminController {
                     trim($input['title']),
                     trim($input['description'] ?? ''),
                     (int)$input['subject_id'],
-                    $input['series'] ?? 'both',
+                    json_encode($input['series'] ?? []),
                     $pdfUrl
                 ]);
                 $this->jsonResponse(['success' => true, 'message' => 'Résumé ajouté avec succès.', 'id' => $this->db->lastInsertId()]);
@@ -542,15 +529,14 @@ class AdminController {
             } else {
                 $series = $_GET['series'] ?? 'C';
                 $stmt = $this->db->prepare("
-                    SELECT rs.id, rs.title, rs.pdf_url, s.name as subject 
+                    SELECT rs.id, rs.title, rs.pdf_url, s.name as subject, s.id as subject_id, ss.coefficient
                     FROM revision_sheets rs 
                     JOIN subjects s ON rs.subject_id = s.id
-                    JOIN series_subjects ss ON s.id = ss.subject_id
-                    JOIN series sr ON ss.series_id = sr.id
-                    WHERE sr.name = :series
+                    JOIN subject_series ss ON s.id = ss.subject_id
+                    WHERE ss.series_id = :series
                     ORDER BY rs.id DESC
                 ");
-                $stmt->execute(['series' => $series]);
+                $stmt->execute(['series' => (int)$series]);
                 $sheets = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 $this->jsonResponse(['success' => true, 'sheets' => $sheets]);
             }
@@ -634,8 +620,8 @@ class AdminController {
         }
 
         try {
-            $stmt = $this->db->prepare("UPDATE lessons SET title=?, content=?, reference_links=? WHERE id=?");
-            $stmt->execute([$title, $content, json_encode($references), $id]);
+            $stmt = $this->db->prepare("UPDATE lessons SET title=?, content=? WHERE id=?");
+            $stmt->execute([$title, $content, $id]);
             $this->jsonResponse(['success' => true, 'message' => 'Leçon mise à jour.']);
         } catch (\Exception $e) {
             $this->jsonResponse(['error' => $e->getMessage()], 500);
@@ -769,10 +755,10 @@ class AdminController {
                     SELECT e.*, s.name as subject 
                     FROM exams e 
                     JOIN subjects s ON e.subject_id = s.id
-                    WHERE e.series = :series OR e.series = 'both'
+                    WHERE JSON_CONTAINS(e.series, :series)
                     ORDER BY e.year DESC, e.id DESC
                 ");
-                $stmt->execute(['series' => $series]);
+                $stmt->execute(['series' => json_encode((int)$series)]);
                 $exams = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 $this->jsonResponse(['success' => true, 'exams' => $exams]);
             }
@@ -781,7 +767,8 @@ class AdminController {
             // Add or Update
             $id        = $input['id'] ?? null;
             $subjId    = trim((string)($input['subject_id'] ?? ''));
-            $series    = trim((string)($input['series'] ?? 'C'));
+            $series    = $input['series'] ?? [];
+            if (!is_array($series)) $series = [$series];
             $year      = (int)($input['year'] ?? date('Y'));
             $session   = trim((string)($input['session'] ?? 'normale'));
             $solution  = trim((string)($input['solution_content'] ?? ''));
@@ -817,11 +804,11 @@ class AdminController {
             try {
                 if ($id) {
                     $stmt = $this->db->prepare("UPDATE exams SET subject_id=?, series=?, year=?, session=?, pdf_statement_url=?, pdf_correction_url=?, solution_content=? WHERE id=?");
-                    $stmt->execute([$subjId, $series, $year, $session, $pdfStatement, $pdfCorrection, $solution, $id]);
+                    $stmt->execute([$subjId, json_encode($series), $year, $session, $pdfStatement, $pdfCorrection, $solution, $id]);
                     $message = "Annale mise à jour";
                 } else {
                     $stmt = $this->db->prepare("INSERT INTO exams (subject_id, series, year, session, pdf_statement_url, pdf_correction_url, solution_content) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$subjId, $series, $year, $session, $pdfStatement, $pdfCorrection, $solution]);
+                    $stmt->execute([$subjId, json_encode($series), $year, $session, $pdfStatement, $pdfCorrection, $solution]);
                     $message = "Annale ajoutée avec succès";
                 }
                 $this->jsonResponse(['success' => true, 'message' => $message]);
@@ -872,13 +859,14 @@ class AdminController {
                 
                 $series = $_GET['series'] ?? 'C';
                 $subjectFilter = $_GET['subject_id'] ?? null;
-                $params = ['series' => $series, 'user_id' => $userId];
+                $params = ['user_id' => $userId];
                 
                 $sql = "SELECT e.*, s.name as subject,
                        (SELECT CASE WHEN status = 'completed' THEN 1 ELSE 0 END FROM exercise_progress WHERE user_id = :user_id AND exercise_id = e.id LIMIT 1) as is_completed
                     FROM exercises e 
                     JOIN subjects s ON e.subject_id = s.id
-                    WHERE (e.series = :series OR e.series = 'both')";
+                    WHERE JSON_CONTAINS(e.series, :series)";
+                $params['series'] = json_encode((int)$series);
                 if ($subjectFilter) {
                     $sql .= " AND e.subject_id = :subject_id";
                     $params['subject_id'] = $subjectFilter;
@@ -899,7 +887,8 @@ class AdminController {
             $id        = $input['id'] ?? null;
             $subjId    = trim((string)($input['subject_id'] ?? ''));
             $title     = trim((string)($input['title'] ?? ''));
-            $series    = trim((string)($input['series'] ?? 'C'));
+            $series    = $input['series'] ?? [];
+            if (!is_array($series)) $series = [$series];
             $type      = trim((string)($input['type'] ?? 'Classique'));
             $difficulty= trim((string)($input['difficulty'] ?? 'medium'));
             $description= trim((string)($input['description'] ?? ''));
@@ -921,11 +910,11 @@ class AdminController {
             try {
                 if ($id) {
                     $stmt = $this->db->prepare("UPDATE exercises SET subject_id=?, series=?, title=?, description=?, type=?, difficulty=?, pdf_path=? WHERE id=?");
-                    $stmt->execute([$subjId, $series, $title, $description, $type, $difficulty, $pdfPath, $id]);
+                    $stmt->execute([$subjId, json_encode($series), $title, $description, $type, $difficulty, $pdfPath, $id]);
                     $message = "Exercice mis à jour";
                 } else {
                     $stmt = $this->db->prepare("INSERT INTO exercises (subject_id, series, title, description, type, difficulty, pdf_path) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$subjId, $series, $title, $description, $type, $difficulty, $pdfPath]);
+                    $stmt->execute([$subjId, json_encode($series), $title, $description, $type, $difficulty, $pdfPath]);
                     $message = "Exercice ajouté avec succès";
                 }
                 $this->jsonResponse(['success' => true, 'message' => $message]);
@@ -991,13 +980,11 @@ class AdminController {
                            (SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) as questions_count
                     FROM quizzes q
                     JOIN subjects s ON q.subject_id = s.id
-                    JOIN series_subjects ss ON s.id = ss.subject_id
-                    JOIN series sr ON ss.series_id = sr.id
-                    WHERE (q.series = :series OR q.series = 'both' OR sr.name = :series2)
+                    WHERE JSON_CONTAINS(q.series, :series)
                     GROUP BY q.id
                     ORDER BY q.id DESC
                 ");
-                $stmt->execute(['series' => $series, 'series2' => $series]);
+                $stmt->execute(['series' => (int)$series]);
                 $quizzes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 $this->jsonResponse(['success' => true, 'quizzes' => $quizzes]);
             }
@@ -1007,7 +994,8 @@ class AdminController {
             $subjId      = trim((string)($input['subject_id'] ?? ''));
             $title       = trim((string)($input['title'] ?? ''));
             $difficulty  = trim((string)($input['difficulty'] ?? 'medium'));
-            $series      = trim((string)($input['series'] ?? 'both'));
+            $series      = $input['series'] ?? [];
+            if (!is_array($series)) $series = [$series];
             $timeLimit   = (int)($input['time_limit_minutes'] ?? 20);
             $questions   = $input['questions'] ?? [];
 
@@ -1020,7 +1008,7 @@ class AdminController {
 
                 if ($quizId) {
                     $stmt = $this->db->prepare("UPDATE quizzes SET subject_id=?, title=?, series=?, difficulty=?, time_limit_minutes=? WHERE id=?");
-                    $stmt->execute([$subjId, $title, $series, $difficulty, $timeLimit, $quizId]);
+                    $stmt->execute([$subjId, $title, json_encode($series), $difficulty, $timeLimit, $quizId]);
                     
                     // Clear old questions/answers for simple update logic
                     $qstmt = $this->db->prepare("SELECT id FROM questions WHERE quiz_id = ?");
@@ -1033,7 +1021,7 @@ class AdminController {
                     }
                 } else {
                     $stmt = $this->db->prepare("INSERT INTO quizzes (subject_id, title, series, difficulty, time_limit_minutes) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute([$subjId, $title, $series, $difficulty, $timeLimit]);
+                    $stmt->execute([$subjId, $title, json_encode($series), $difficulty, $timeLimit]);
                     $quizId = $this->db->lastInsertId();
                 }
 
@@ -1072,6 +1060,50 @@ class AdminController {
                 $this->jsonResponse(['success' => true, 'message' => 'Quiz supprimé']);
             } catch (\Exception $e) {
                 $this->jsonResponse(['error' => 'Erreur: ' . $e->getMessage()], 500);
+            }
+        }
+    }
+    
+    public function series() {
+        $this->requireAdmin();
+        $method = $_SERVER['REQUEST_METHOD'];
+        $id = $_GET['id'] ?? null;
+
+        if ($method === 'GET') {
+            $stmt = $this->db->query("SELECT * FROM series ORDER BY id ASC");
+            $this->jsonResponse(['success' => true, 'series' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        } 
+        else if ($method === 'POST') {
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (empty($input['name'])) $this->jsonResponse(['error' => 'Nom de la série requis'], 400);
+
+            try {
+                $stmt = $this->db->prepare("INSERT INTO series (name) VALUES (?)");
+                $stmt->execute([$input['name']]);
+                $this->jsonResponse(['success' => true, 'id' => $this->db->lastInsertId()]);
+            } catch (\Exception $e) {
+                $this->jsonResponse(['error' => $e->getMessage()], 500);
+            }
+        }
+        else if ($method === 'PUT' && $id) {
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (empty($input['name'])) $this->jsonResponse(['error' => 'Nom de la série requis'], 400);
+
+            try {
+                $stmt = $this->db->prepare("UPDATE series SET name = ? WHERE id = ?");
+                $stmt->execute([$input['name'], $id]);
+                $this->jsonResponse(['success' => true]);
+            } catch (\Exception $e) {
+                $this->jsonResponse(['error' => $e->getMessage()], 500);
+            }
+        }
+        else if ($method === 'DELETE' && $id) {
+            try {
+                $stmt = $this->db->prepare("DELETE FROM series WHERE id = ?");
+                $stmt->execute([$id]);
+                $this->jsonResponse(['success' => true]);
+            } catch (\Exception $e) {
+                $this->jsonResponse(['error' => $e->getMessage()], 500);
             }
         }
     }
