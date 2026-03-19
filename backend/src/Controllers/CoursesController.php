@@ -114,10 +114,20 @@ class CoursesController {
             }
             $lessons = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
+            // Fetch chapters for this subject (with PDF cours)
+            $stmtCh = $db->prepare("
+                SELECT id, title, description, order_index, pdf_url
+                FROM chapters
+                WHERE subject_id = ? AND (series = ? OR series = 'both')
+                ORDER BY order_index ASC, id ASC
+            ");
+            $stmtCh->execute([$subject['id'], $series]);
+            $chapters = $stmtCh->fetchAll(\PDO::FETCH_ASSOC);
+
             // Fetch revision sheets for this subject
-            $stmt = $db->prepare("SELECT * FROM revision_sheets WHERE subject_id = ?");
-            $stmt->execute([$subject['id']]);
-            $sheets = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            $stmtSh = $db->prepare("SELECT * FROM revision_sheets WHERE subject_id = ?");
+            $stmtSh->execute([$subject['id']]);
+            $sheets = $stmtSh->fetchAll(\PDO::FETCH_ASSOC);
             
             $totalProgress = 0;
             $processedLessons = array_map(function($l) use (&$totalProgress) {
@@ -130,6 +140,7 @@ class CoursesController {
             $subjectProgress = count($lessons) > 0 ? round($totalProgress / count($lessons)) : 0;
 
             $subject['lessons'] = $processedLessons;
+            $subject['chapters'] = $chapters;
             $subject['sheets']  = $sheets;
             $subject['progress'] = $subjectProgress;
         }
@@ -218,5 +229,39 @@ class CoursesController {
         $stmt->execute([$userId, $lessonId, $progress, $progress]);
 
         $this->jsonResponse(['success' => true, 'progress' => $progress]);
+    }
+
+    // GET /courses/resumes?series=C
+    public function resumes() {
+        $series = $_GET['series'] ?? 'C';
+        $db = \App\Core\Database::getInstance()->getConnection();
+
+        // 1. Fetch subjects
+        $subjects = $this->subjectModel->getBySeries($series);
+
+        foreach ($subjects as &$subject) {
+            // Fetch resumes from the new independent table
+            $stmt = $db->prepare("
+                SELECT id, title, description, pdf_url, created_at
+                FROM resumes
+                WHERE subject_id = ? AND (series = ? OR series = 'both')
+                ORDER BY id DESC
+            ");
+            $stmt->execute([$subject['id'], $series]);
+            $subject['resumes'] = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            // Keep revision sheets too
+            $stmtSh = $db->prepare("SELECT * FROM revision_sheets WHERE subject_id = ?");
+            $stmtSh->execute([$subject['id']]);
+            $subject['sheets'] = $stmtSh->fetchAll(\PDO::FETCH_ASSOC);
+            
+            // Fallback styles
+            $subject['emoji'] = '📚';
+            $subject['color'] = $subject['color_theme'] ?? '#f59e0b';
+            $subject['bg'] = 'rgba(245,158,11,0.1)';
+            $subject['gradient'] = 'linear-gradient(135deg, #f59e0b, #d97706)';
+        }
+
+        $this->jsonResponse(['subjects' => $subjects]);
     }
 }

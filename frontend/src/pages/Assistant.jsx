@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Send, Sparkles, BookOpen, GitBranch, Brain, Zap } from 'lucide-react';
 import { API_BASE_URL } from '../apiConfig';
 
@@ -22,11 +23,19 @@ export default function Assistant() {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const bottomRef = useRef(null);
+  const location = useLocation();
+  const hasProcessedState = useRef(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (location.state?.prompt && !hasProcessedState.current) {
+      hasProcessedState.current = true;
+      handleSend(location.state.prompt);
+    }
+  }, [location.state]);
 
   const handleSend = async (text) => {
     const msg = text !== undefined ? text : input;

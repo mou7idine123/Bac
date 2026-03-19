@@ -18,7 +18,7 @@ class User {
     }
     
     public function findById($id) {
-        $stmt = $this->db->prepare("SELECT id, first_name, last_name, email, role, series, avatar_url, created_at FROM users WHERE id = :id LIMIT 1");
+        $stmt = $this->db->prepare("SELECT id, first_name, last_name, email, role, series, avatar_url, current_streak, max_streak, last_activity_date, created_at FROM users WHERE id = :id LIMIT 1");
         $stmt->execute(['id' => $id]);
         return $stmt->fetch();
     }

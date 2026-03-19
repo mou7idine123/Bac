@@ -113,7 +113,7 @@ class Router {
 
     private function sendError($code, $message) {
         http_response_code($code);
-        echo json_encode(["error" => "true", "message" => $message]);
+        echo json_encode(["success" => false, "error" => $message]);
         exit;
     }
 }

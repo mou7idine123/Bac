@@ -43,7 +43,7 @@ class QuizzesController {
         
         if (!$quiz) $this->jsonResponse(['error' => 'Quiz introuvable'], 404);
         
-        $stmtQ = $this->db->prepare("SELECT id, question_text, points FROM questions WHERE quiz_id = ?");
+        $stmtQ = $this->db->prepare("SELECT id, question_text, explanation, points FROM questions WHERE quiz_id = ?");
         $stmtQ->execute([$quizId]);
         $questions = $stmtQ->fetchAll();
         

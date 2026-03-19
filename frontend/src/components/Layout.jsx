@@ -1,9 +1,10 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, Sparkles, Settings } from 'lucide-react';
+import BottomNav from './BottomNav';
+import { Bell, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import StreakHeader from './StreakHeader';
 
 const routeLabels = {
   '/': 'Tableau de bord',
@@ -30,17 +31,18 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
+      {/* Sidebar — visible on desktop only via CSS */}
       <Sidebar />
+
       <div className="app-main">
-        {/* Top Header */}
-        <div className="top-header-wrap">
+        {/* Desktop header */}
+        <div className="top-header-wrap desktop-only">
           <header className="top-header">
-            <div>
-              <span className="header-greeting">
-                Bonjour, <span>{firstName} !</span>
-              </span>
-            </div>
+            <span className="header-greeting">
+              Bonjour, <span>{firstName} !</span>
+            </span>
             <div className="header-actions">
+              <StreakHeader />
               {user?.role === 'admin' && (
                 <button
                   className="header-btn"
@@ -54,24 +56,32 @@ export default function Layout() {
               <button className="header-btn">
                 <Bell size={14} />
                 <span>Notifications</span>
-                <ChevronDown size={12} />
               </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <div className="header-avatar" title="Mon compte">{initials}</div>
-                <span style={{ fontSize: '0.83rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  {firstName}
-                </span>
-                <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
-              </div>
+              <div className="header-avatar" title="Mon compte">{initials}</div>
             </div>
           </header>
         </div>
 
-        {/* Page */}
+        {/* Mobile header */}
+        <header className="mobile-header mobile-only">
+          <div className="mobile-header-left">
+            <div className="mobile-logo">P</div>
+            <span className="mobile-page-title">{label}</span>
+          </div>
+          <div className="mobile-header-right">
+            <StreakHeader />
+            <div className="header-avatar mobile-avatar">{initials}</div>
+          </div>
+        </header>
+
+        {/* Page content */}
         <main className="page-content anim-fade-up">
           <Outlet />
         </main>
       </div>
+
+      {/* Bottom nav — mobile only */}
+      <BottomNav />
     </div>
   );
 }

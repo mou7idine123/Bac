@@ -2,367 +2,707 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BookOpen, TrendingUp, CheckSquare, Calendar, ArrowRight,
-  Sparkles, GraduationCap, FlaskConical, Ruler, Play,
+  Sparkles, FlaskConical, Ruler, Play, Zap, Brain, GitBranch,
+  Target, Trophy, ChevronRight, AlertTriangle, Star,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ProgressRing from '../components/ProgressRing';
 import { API_BASE_URL } from '../apiConfig';
+import StreakCard from '../components/StreakCard';
 
-/** Textes de l'interface */
-const UI = {
-  seriesLabel: (label) => label,
-  globalTitle: 'Progression Globale',
-  globalSub: 'du programme',
-  nextLabel: 'Prochain :',
-  quizzesTitle: 'Quiz Récents',
-  quizzesCta: 'Voir plus',
-  planningTitle: 'Planning à Venir',
-  planningCta: 'Gérer Planning',
-  aiTitle: 'Assistant IA',
-  aiPlaceholder: "Comment puis-je t'aider aujourd'hui ?",
-  gradientId: 'gp',
-  gradientLabel: '%',
-  gradientSublabel: 'global',
-};
-
-/** Routes internes */
-const ROUTES = {
-  quizzes: '/quizzes',
-  planning: '/planning',
-  assistant: '/assistant',
-};
-
-/** Progression globale (à terme, viendra de l'API) */
-const GLOBAL_PROGRESS = 75;
-
-/** Derniers quiz passés (à terme, viendra de l'API) */
-const RECENT_QUIZZES = [];
-
-/** Données par série */
 const SERIES_DATA = {
   C: {
-    label: 'Série C — Mathématiques',
+    label: 'Série C',
+    sublabel: 'Mathématiques & Sciences',
     color: '#4f7af8',
-    badgeBg: 'rgba(79,122,248,0.1)',
-    gradient: 'linear-gradient(90deg,#4f7af8,#764ba2)',
+    gradient: 'linear-gradient(135deg, #4f7af8 0%, #764ba2 100%)',
     icon: Ruler,
-    subjects: [],
-    planning: [],
-    ai: [],
+    subjects: [
+      { name: 'Mathématiques', color: '#4f7af8', bg: 'rgba(79,122,248,0.1)', icon: '📐' },
+      { name: 'Physique-Chimie', color: '#f5576c', bg: 'rgba(245,87,108,0.1)', icon: '⚡' },
+      { name: 'Informatique', color: '#10b981', bg: 'rgba(16,185,129,0.1)', icon: '💻' },
+    ],
   },
   D: {
-    label: 'Série D — Sciences Naturelles',
-    color: '#2ed573',
-    badgeBg: 'rgba(46,213,115,0.1)',
-    gradient: 'linear-gradient(90deg,#43e97b,#38f9d7)',
+    label: 'Série D',
+    sublabel: 'Sciences Naturelles',
+    color: '#10b981',
+    gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
     icon: FlaskConical,
-    subjects: [],
-    planning: [],
-    ai: [],
+    subjects: [
+      { name: 'Sciences Naturelles', color: '#10b981', bg: 'rgba(16,185,129,0.1)', icon: '🧬' },
+      { name: 'Physique-Chimie', color: '#f5576c', bg: 'rgba(245,87,108,0.1)', icon: '⚡' },
+      { name: 'Mathématiques', color: '#4f7af8', bg: 'rgba(79,122,248,0.1)', icon: '📐' },
+    ],
   },
 };
 
-/* ================================================================
-   COMPOSANT
-   ================================================================ */
+const AI_ACTIONS = [
+  { icon: BookOpen, label: 'Expliquer un chapitre', color: '#4f7af8', prompt: 'Explique-moi un chapitre de mon programme.' },
+  { icon: Zap, label: 'Générer un exercice', color: '#f5576c', prompt: 'Génère-moi un exercice de révision.' },
+  { icon: Calendar, label: 'Optimiser mon planning', color: '#10b981', prompt: 'Aide-moi à optimiser mon planning de révision.' },
+  { icon: Brain, label: 'Fiche de révision', color: '#a18cd1', prompt: 'Crée-moi une fiche de révision.' },
+];
 
+const TO_REVIEW = [
+  { subject: 'Dérivées & Intégrales', reason: 'Dernière tentative < 60%', urgency: 'high', icon: '📐' },
+  { subject: 'Électricité', reason: 'Pas révisé depuis 5 jours', urgency: 'medium', icon: '⚡' },
+  { subject: 'Génétique', reason: 'QCM non validé', urgency: 'medium', icon: '🧬' },
+];
+
+/* ─── Petit sous-composant pour les barres animées ─── */
+function AnimProgressBar({ pct, color, delay = 0 }) {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setWidth(pct), 200 + delay);
+    return () => clearTimeout(t);
+  }, [pct, delay]);
+  return (
+    <div style={{ height: 6, background: 'rgba(0,0,0,0.06)', borderRadius: 99, overflow: 'hidden' }}>
+      <div style={{
+        height: '100%', borderRadius: 99, background: color,
+        width: `${width}%`, transition: 'width 1.2s cubic-bezier(0.4,0,0.2,1)',
+        boxShadow: `0 0 8px ${color}60`,
+      }} />
+    </div>
+  );
+}
+
+/* ─── Carte stat (Exercices / Annales / QCM) ─── */
+function StatCard({ title, icon: Icon, done, total, color, gradient, delay }) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: 'rgba(255,255,255,0.85)',
+        backdropFilter: 'blur(20px)',
+        border: hovered ? `1px solid ${color}40` : '1px solid rgba(200,210,240,0.5)',
+        borderRadius: 20,
+        padding: '1.25rem 1.5rem',
+        display: 'flex', flexDirection: 'column', gap: '0.9rem',
+        transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+        boxShadow: hovered ? `0 16px 40px ${color}20, 0 4px 12px rgba(0,0,0,0.06)` : '0 4px 20px rgba(100,120,200,0.08)',
+        transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        cursor: 'default',
+        animation: `fadeUp 0.5s ease ${delay}ms both`,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.4rem' }}>
+            {title}
+          </div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', lineHeight: 1 }}>
+            {pct}<span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-muted)' }}>%</span>
+          </div>
+        </div>
+        <div style={{
+          width: 42, height: 42, borderRadius: 14,
+          background: `${color}15`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: color,
+          boxShadow: hovered ? `0 4px 12px ${color}30` : 'none',
+          transition: 'all 0.3s',
+        }}>
+          <Icon size={20} />
+        </div>
+      </div>
+      <AnimProgressBar pct={pct} color={gradient} delay={delay} />
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+        {done} / {total} terminés
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   COMPOSANT PRINCIPAL
+   ================================================================ */
 export default function Dashboard() {
   const { user } = useAuth();
   const seriesKey = user?.series ?? 'C';
   const data = SERIES_DATA[seriesKey] ?? SERIES_DATA.C;
   const SeriesIcon = data.icon;
+  const firstName = user?.name?.split(' ')[0] ?? 'Étudiant';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
 
-  const [dbSubjects, setDbSubjects] = useState([]);
-  const [resumes, setResumes] = useState([]);
   const [stats, setStats] = useState({
-    quiz_stats: { attempts: 0, avg_score: 0 },
+    quiz_stats: { attempts: 0, avg_score: 0, completed: 0, total: 0 },
     exercise_stats: { total: 0, completed: 0 },
-    exam_stats: { total: 0, completed: 0 }
+    exam_stats: { total: 0, completed: 0 },
   });
+  const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [heroPct, setHeroPct] = useState(0);
 
   useEffect(() => {
-    fetchLibrary();
-    fetchResumes();
     fetchStats();
+    fetchResumes();
   }, [seriesKey]);
 
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('bac_token');
       const res = await fetch(`${API_BASE_URL}/progress/dashboard`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const result = await res.json();
       if (result.exercise_stats) {
         setStats(result);
       }
     } catch (err) { }
+    finally { setLoading(false); }
   };
 
   const fetchResumes = async () => {
     try {
       const token = localStorage.getItem('bac_token');
       const res = await fetch(`${API_BASE_URL}/admin/chapters?series=${seriesKey}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (data.chapters) {
-        setResumes(data.chapters.filter(c => c.resume_pdf_url));
-      }
+      if (data.chapters) setResumes(data.chapters.filter(c => c.resume_pdf_url));
     } catch (err) { }
   };
 
-  const fetchLibrary = async () => {
-    try {
-      const token = localStorage.getItem('bac_token');
-      const res = await fetch(`${API_BASE_URL}/courses/library?series=${seriesKey}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const result = await res.json();
-      if (result.subjects) {
-        // Map database subjects to UI format
-        const mapped = result.subjects.map((s, idx) => {
-          let totalLessons = 0;
-          if (s.chapters && Array.isArray(s.chapters)) {
-            totalLessons = s.chapters.reduce((sum, ch) => sum + (ch.lessons || 0), 0);
-          }
-          let baseColor = s.color_theme || '#667eea';
-          let grad = `linear-gradient(90deg, ${baseColor}, #764ba2)`;
-
-          return {
-            name: s.name,
-            icon: BookOpen,
-            color: baseColor,
-            bg: `${baseColor}20`,
-            progress: 0,
-            next: 'Introduction',
-            grad: grad,
-            totalLessons: totalLessons
-          };
-        });
-        setDbSubjects(mapped);
-      }
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
-  };
-
   const getGlobalProgress = () => {
-    let exProg = stats.exercise_stats.total > 0 ? (stats.exercise_stats.completed / stats.exercise_stats.total) * 100 : 0;
-    let examProg = stats.exam_stats.total > 0 ? (stats.exam_stats.completed / stats.exam_stats.total) * 100 : 0;
-    let quizProg = stats.quiz_stats.total > 0 ? (stats.quiz_stats.completed / stats.quiz_stats.total) * 100 : 0;
-    let items = 0; let total = 0;
-
-    if (stats.exercise_stats.total > 0) { items++; total += exProg; }
-    if (stats.exam_stats.total > 0) { items++; total += examProg; }
-    if (stats.quiz_stats.total > 0) { items++; total += quizProg; }
+    let items = 0, total = 0;
+    const add = (done, t) => { if (t > 0) { items++; total += (done / t) * 100; } };
+    add(stats.exercise_stats.completed, stats.exercise_stats.total);
+    add(stats.exam_stats.completed, stats.exam_stats.total);
+    add(stats.quiz_stats.completed, stats.quiz_stats.total);
     return items > 0 ? Math.round(total / items) : 0;
   };
 
   const globalProgress = getGlobalProgress();
 
+  useEffect(() => {
+    const t = setTimeout(() => setHeroPct(globalProgress), 400);
+    return () => clearTimeout(t);
+  }, [globalProgress]);
+
+  const urgencyConfig = {
+    high: { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)', label: 'Urgent' },
+    medium: { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)', label: 'À réviser' },
+    low: { color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)', label: 'Bien' },
+  };
+
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
 
-      {/* Badge série */}
-      <div style={{ marginBottom: '1rem' }}>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-          padding: '0.3rem 0.85rem', borderRadius: 'var(--r-full)',
-          fontSize: '0.78rem', fontWeight: 700,
-          background: data.badgeBg,
-          color: data.color,
-        }}>
-          <SeriesIcon size={14} />
-          {UI.seriesLabel(data.label)}
-        </span>
-      </div>
+      {/* ── HERO CARD ── */}
+      <div style={{
+        background: `linear-gradient(135deg, #1a1f3a 0%, #2d3261 50%, #1a2a5e 100%)`,
+        borderRadius: 28,
+        padding: 'clamp(1.75rem, 4vw, 2.5rem)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem',
+        flexWrap: 'wrap',
+        position: 'relative', overflow: 'hidden',
+        boxShadow: '0 24px 60px rgba(26,31,58,0.35), 0 8px 24px rgba(79,122,248,0.2)',
+        animation: 'fadeUp 0.5s ease both',
+      }}>
+        {/* Decorative blobs */}
+        <div style={{
+          position: 'absolute', top: '-40%', right: '-5%',
+          width: '45%', paddingBottom: '45%', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(79,122,248,0.25) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '-50%', left: '20%',
+          width: '35%', paddingBottom: '35%', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(161,140,209,0.18) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
 
-      {/* Ligne haute : anneau de progression + cartes progression */}
-      <div
-        className="grid stagger anim-fade-up"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}
-      >
-        {/* Progression globale */}
-        <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-            {UI.globalTitle}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+              background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 700,
+              padding: '0.25rem 0.75rem', borderRadius: 99, letterSpacing: '0.04em',
+            }}>
+              <SeriesIcon size={12} /> {data.label} — {data.sublabel}
+            </span>
+          </div>
+          <h1 style={{
+            fontFamily: 'var(--font-display)', fontSize: 'clamp(1.4rem, 3.5vw, 2rem)',
+            fontWeight: 900, color: 'white', margin: 0, lineHeight: 1.2, marginBottom: '0.5rem',
+          }}>
+            {greeting}, {firstName} 👋
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.95rem', margin: 0, fontWeight: 500 }}>
+            {globalProgress >= 80
+              ? '🔥 Tu es en excellente forme ! Continue ce rythme.'
+              : globalProgress >= 50
+                ? '📈 Tu progresses bien ! Ne relâche pas l\'effort.'
+                : '🎯 Chaque révision te rapproche du bac. Courage !'}
           </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-            <div style={{ position: 'relative' }}>
-              <svg width="0" height="0">
-                <defs>
-                  <linearGradient id={UI.gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#667eea" />
-                    <stop offset="100%" stopColor="#f093fb" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <ProgressRing
-                percent={globalProgress}
-                size={96}
-                strokeWidth={10}
-                color={`url(#${UI.gradientId})`}
-                label={`${globalProgress}${UI.gradientLabel}`}
-                sublabel={UI.gradientSublabel}
-              />
+
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+            <Link to="/quizzes" style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.65rem 1.25rem', borderRadius: 12,
+              background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: 'white', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none',
+              transition: 'all 0.2s',
+            }}
+              onMouseOver={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.22)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseOut={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'none'; }}
+            >
+              <Play size={14} fill="white" /> Démarrer un QCM
+            </Link>
+            <Link to="/planning" style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.65rem 1.25rem', borderRadius: 12,
+              background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+              color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: '0.85rem', textDecoration: 'none',
+              transition: 'all 0.2s',
+            }}
+              onMouseOver={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+              onMouseOut={e => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <Calendar size={14} /> Mon planning
+            </Link>
+          </div>
+        </div>
+
+        {/* Ring de progression */}
+        <div style={{
+          position: 'relative', zIndex: 1,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem',
+        }}>
+          <div style={{ position: 'relative' }}>
+            <svg width="0" height="0">
+              <defs>
+                <linearGradient id="heroGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#667eea" />
+                  <stop offset="100%" stopColor="#f093fb" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <ProgressRing
+              percent={globalProgress}
+              size={110}
+              strokeWidth={10}
+              color="url(#heroGrad)"
+              label={`${globalProgress}%`}
+              sublabel="global"
+            />
+            {/* Inner glow */}
+            <div style={{
+              position: 'absolute', inset: 10,
+              background: 'rgba(255,255,255,0.06)',
+              borderRadius: '50%', pointerEvents: 'none',
+            }} />
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Progression globale
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '2rem', fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', lineHeight: 1 }}>
-                {globalProgress}{UI.gradientLabel}
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                {UI.globalSub}
-              </div>
-              <div className="progress-track" style={{ marginTop: '0.75rem' }}>
-                <div className="progress-fill progress-multi" style={{ width: `${globalProgress}%` }} />
-              </div>
-            </div>
           </div>
-        </div>
-
-        {/* Exercices */}
-        <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Exercices</h4>
-            <span style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981' }}>{stats.exercise_stats.completed}/{stats.exercise_stats.total}</span>
-          </div>
-          <div className="progress-track" style={{ height: 12 }}>
-            <div className="progress-fill" style={{
-              width: `${stats.exercise_stats.total > 0 ? (stats.exercise_stats.completed / stats.exercise_stats.total) * 100 : 0}%`,
-              background: 'linear-gradient(90deg, #10b981, #34d399)'
-            }} />
-          </div>
-          <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>Exercices terminés.</p>
-        </div>
-
-        {/* Annales */}
-        <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Annales</h4>
-            <span style={{ fontSize: '1rem', fontWeight: 800, color: '#f59e0b' }}>{stats.exam_stats.completed}/{stats.exam_stats.total}</span>
-          </div>
-          <div className="progress-track" style={{ height: 12 }}>
-            <div className="progress-fill" style={{
-              width: `${stats.exam_stats.total > 0 ? (stats.exam_stats.completed / stats.exam_stats.total) * 100 : 0}%`,
-              background: 'linear-gradient(90deg, #f59e0b, #fbbf24)'
-            }} />
-          </div>
-          <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sujets d'examens terminés.</p>
-        </div>
-
-        {/* QCM */}
-        <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>QCM</h4>
-            <span style={{ fontSize: '1rem', fontWeight: 800, color: '#8b5cf6' }}>{stats.quiz_stats.completed}/{stats.quiz_stats.total}</span>
-          </div>
-          <div className="progress-track" style={{ height: 12 }}>
-            <div className="progress-fill" style={{
-              width: `${stats.quiz_stats.total > 0 ? (stats.quiz_stats.completed / stats.quiz_stats.total) * 100 : 0}%`,
-              background: 'linear-gradient(90deg, #8b5cf6, #a78bfa)'
-            }} />
-          </div>
-          <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>Quiz marqués comme faits.</p>
         </div>
       </div>
 
-      {/* Ligne basse : Quiz / Planning / IA / Résumés */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+      {/* ── STAT CARDS ROW ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+        gap: '1rem',
+      }}>
+        <StatCard
+          title="Exercices" icon={CheckSquare}
+          done={stats.exercise_stats.completed} total={stats.exercise_stats.total}
+          color="#10b981" gradient="linear-gradient(90deg, #10b981, #34d399)"
+          delay={0}
+        />
+        <StatCard
+          title="Annales" icon={TrendingUp}
+          done={stats.exam_stats.completed} total={stats.exam_stats.total}
+          color="#f59e0b" gradient="linear-gradient(90deg, #f59e0b, #fbbf24)"
+          delay={80}
+        />
+        <StatCard
+          title="QCM Validés" icon={Star}
+          done={stats.quiz_stats.completed} total={stats.quiz_stats.total}
+          color="#8b5cf6" gradient="linear-gradient(90deg, #8b5cf6, #a78bfa)"
+          delay={160}
+        />
+      </div>
 
+      {/* ── MAIN GRID ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
 
-        {/* Résumés Chapitres */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="section-header">
-            <h3 className="section-title">
-              <BookOpen size={16} style={{ color: 'var(--primary)' }} />
-              Résumés de Chapitre
-            </h3>
-          </div>
-          {resumes.length === 0 ? (
-            <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>Aucun résumé disponible.</div>
-          ) : (
-            resumes.slice(0, 3).map((r, i) => (
-              <div key={i} className="glass-light" style={{
-                display: 'flex', alignItems: 'center', gap: '0.8rem',
-                padding: '0.75rem 1rem', borderRadius: 'var(--r-lg)',
-                transition: 'var(--t)', cursor: 'pointer'
-              }}
-                onClick={() => window.open(`${API_BASE_URL.replace('/api', '')}${r.resume_pdf_url}`, '_blank')}
-                onMouseOver={e => e.currentTarget.style.background = 'white'} onMouseOut={e => e.currentTarget.style.background = 'var(--bg-glass-light)'}>
-                <div style={{ width: 36, height: 36, borderRadius: 'var(--r-md)', background: 'linear-gradient(135deg,#f093fb,#f5576c)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem' }}>
-                  <BookOpen size={16} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{r.subject_name}</div>
-                </div>
-                <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
+        {/* Streak & Badges */}
+        <StreakCard />
+
+        {/* À réviser aujourd'hui */}
+        <div style={{
+          background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(200,210,240,0.5)', borderRadius: 20,
+          padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem',
+          animation: 'fadeUp 0.5s ease 200ms both',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.2rem' }}>
+                Recommandations
               </div>
-            ))
-          )}
-          <Link to="/courses" className="btn btn-glass" style={{ alignSelf: 'flex-start', marginTop: 'auto' }}>
-            Tous les cours <ArrowRight size={14} />
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                👉 À réviser aujourd'hui
+              </h3>
+            </div>
+            <div style={{
+              background: 'rgba(239,68,68,0.1)', color: '#ef4444',
+              padding: '0.25rem 0.65rem', borderRadius: 99,
+              fontSize: '0.7rem', fontWeight: 800,
+            }}>
+              {TO_REVIEW.length} matières
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            {TO_REVIEW.map((item, i) => {
+              const u = urgencyConfig[item.urgency];
+              return (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.85rem',
+                  padding: '0.85rem 1rem', borderRadius: 14,
+                  background: u.bg, border: `1px solid ${u.border}`,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                }}
+                  onMouseOver={e => e.currentTarget.style.transform = 'translateX(4px)'}
+                  onMouseOut={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {item.subject}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                      {item.reason}
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: '0.65rem', fontWeight: 800, padding: '0.2rem 0.55rem',
+                    borderRadius: 99, background: u.color + '20', color: u.color,
+                  }}>
+                    {u.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <Link to="/courses" style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+            padding: '0.65rem 1.1rem', borderRadius: 12, alignSelf: 'flex-start',
+            background: 'var(--primary-soft)', color: 'var(--primary)',
+            fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none',
+            transition: 'all 0.2s', border: '1px solid rgba(79,122,248,0.15)',
+          }}
+            onMouseOver={e => { e.currentTarget.style.background = 'rgba(79,122,248,0.15)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseOut={e => { e.currentTarget.style.background = 'var(--primary-soft)'; e.currentTarget.style.transform = 'none'; }}
+          >
+            <BookOpen size={14} /> Voir les cours <ArrowRight size={13} />
           </Link>
+        </div>
+      </div>
+
+      {/* ── SECOND GRID: AI + Résumés + Planning ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+
+        {/* Assistant IA — Bloc intelligent */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(161,140,209,0.12) 0%, rgba(251,194,235,0.1) 100%)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(161,140,209,0.25)',
+          borderRadius: 20,
+          padding: '1.5rem',
+          display: 'flex', flexDirection: 'column', gap: '1.1rem',
+          animation: 'fadeUp 0.5s ease 300ms both',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <div style={{
+              width: 46, height: 46, borderRadius: 16,
+              background: 'linear-gradient(135deg, #a18cd1, #fbc2eb)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 6px 20px rgba(161,140,209,0.4)',
+            }}>
+              <Sparkles size={20} color="white" />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                Assistant IA
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: 2 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', animation: 'pulseGlow 2s infinite' }} />
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>En ligne · Répond instantanément</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{
+            background: 'rgba(255,255,255,0.7)', borderRadius: 14,
+            padding: '0.85rem 1rem', fontSize: '0.88rem', color: 'var(--text-secondary)',
+            border: '1px solid rgba(255,255,255,0.6)', lineHeight: 1.5, fontStyle: 'italic',
+          }}>
+            "Comment puis-je t'aider aujourd'hui ? Explique, génère, planifie..."
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+            {AI_ACTIONS.map((action, i) => {
+              const Icon = action.icon;
+              return (
+                <Link
+                  key={i}
+                  to="/assistant"
+                  state={{ prompt: action.prompt }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.75rem 0.85rem', borderRadius: 12,
+                    background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.8)',
+                    color: 'var(--text-secondary)', fontSize: '0.78rem', fontWeight: 600,
+                    textDecoration: 'none', transition: 'all 0.2s',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                  }}
+                  onMouseOver={e => {
+                    e.currentTarget.style.background = `${action.color}10`;
+                    e.currentTarget.style.borderColor = `${action.color}30`;
+                    e.currentTarget.style.color = action.color;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = `0 8px 20px ${action.color}20`;
+                  }}
+                  onMouseOut={e => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.7)';
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.8)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
+                  }}
+                >
+                  <Icon size={15} color={action.color} />
+                  {action.label}
+                </Link>
+              );
+            })}
+          </div>
+
+          <Link to="/assistant" style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+            padding: '0.8rem', borderRadius: 14,
+            background: 'linear-gradient(135deg, #a18cd1, #fbc2eb)',
+            color: 'white', fontWeight: 700, fontSize: '0.88rem', textDecoration: 'none',
+            transition: 'all 0.2s', boxShadow: '0 4px 16px rgba(161,140,209,0.35)',
+          }}
+            onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(161,140,209,0.5)'; }}
+            onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(161,140,209,0.35)'; }}
+          >
+            <Sparkles size={15} /> Ouvrir l'assistant IA
+          </Link>
+        </div>
+
+        {/* Résumés de Chapitres */}
+        <div style={{
+          background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(200,210,240,0.5)', borderRadius: 20,
+          padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem',
+          animation: 'fadeUp 0.5s ease 350ms both',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.2rem' }}>
+                Bibliothèque
+              </div>
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                <BookOpen size={16} style={{ display: 'inline', marginRight: 6, color: 'var(--primary)' }} />
+                Résumés
+              </h3>
+            </div>
+            <Link to="/courses" style={{
+              fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)',
+              textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem',
+            }}>
+              Tout voir <ChevronRight size={13} />
+            </Link>
+          </div>
+
+          {resumes.length === 0 ? (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem',
+              padding: '2rem 1rem', textAlign: 'center',
+            }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: 16,
+                background: 'rgba(79,122,248,0.08)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <BookOpen size={22} color="var(--primary)" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '0.25rem' }}>
+                  Aucun résumé disponible
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Les résumés de chapitres apparaîtront ici
+                </div>
+              </div>
+              <Link to="/courses" style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0.6rem 1.1rem', borderRadius: 10,
+                background: 'var(--primary-soft)', color: 'var(--primary)',
+                fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none',
+              }}>
+                Voir les cours <ArrowRight size={13} />
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {resumes.slice(0, 4).map((r, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.85rem',
+                      padding: '0.75rem 1rem', borderRadius: 14,
+                      background: 'rgba(248,250,252,0.8)', border: '1px solid rgba(200,210,240,0.3)',
+                      cursor: 'pointer', transition: 'all 0.2s',
+                    }}
+                    onClick={() => window.open(`${API_BASE_URL.replace('/api', '')}${r.resume_pdf_url}`, '_blank')}
+                    onMouseOver={e => { e.currentTarget.style.background = 'rgba(79,122,248,0.05)'; e.currentTarget.style.borderColor = 'rgba(79,122,248,0.2)'; e.currentTarget.style.transform = 'translateX(4px)'; }}
+                    onMouseOut={e => { e.currentTarget.style.background = 'rgba(248,250,252,0.8)'; e.currentTarget.style.borderColor = 'rgba(200,210,240,0.3)'; e.currentTarget.style.transform = 'none'; }}
+                  >
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                      background: 'linear-gradient(135deg, #f093fb, #f5576c)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
+                    }}>
+                      <BookOpen size={16} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {r.title}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>{r.subject_name}</div>
+                    </div>
+                    <ArrowRight size={14} color="var(--text-muted)" />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Planning */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="section-header">
-            <h3 className="section-title">
-              <Calendar size={16} style={{ color: 'var(--primary)' }} />
-              {UI.planningTitle}
+        <div style={{
+          background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(200,210,240,0.5)', borderRadius: 20,
+          padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem',
+          animation: 'fadeUp 0.5s ease 400ms both',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.2rem' }}>
+                Organisation
+              </div>
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                <Calendar size={16} style={{ display: 'inline', marginRight: 6, color: '#f59e0b' }} />
+                Planning
+              </h3>
+            </div>
+            <Link to="/planning" style={{
+              fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b',
+              textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem',
+            }}>
+              Gérer <ChevronRight size={13} />
+            </Link>
+          </div>
+
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem',
+            padding: '1.5rem 1rem', textAlign: 'center',
+          }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 16,
+              background: 'rgba(245,158,11,0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Calendar size={22} color="#f59e0b" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '0.25rem' }}>
+                Planifie ta semaine
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Crée un planning personnalisé avec l'IA pour optimiser tes révisions
+              </div>
+            </div>
+            <Link to="/planning" style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.65rem 1.25rem', borderRadius: 12,
+              background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+              color: 'white', fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none',
+              boxShadow: '0 4px 14px rgba(245,158,11,0.3)', transition: 'all 0.2s',
+            }}
+              onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 22px rgba(245,158,11,0.4)'; }}
+              onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(245,158,11,0.3)'; }}
+            >
+              <Sparkles size={14} /> Générer mon planning
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* ── MATIÈRES BANNER ── */}
+      <div style={{ animation: 'fadeUp 0.5s ease 450ms both' }}>
+        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.2rem' }}>
+              Matières
+            </div>
+            <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              Accès rapide aux cours
             </h3>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {data.planning.map((p, i) => (
-              <div key={i} className="glass-light" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.7rem 1rem', borderRadius: 'var(--r-lg)' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.dot, marginTop: 6, flexShrink: 0, boxShadow: `0 0 8px ${p.dot}` }} />
-                <div>
-                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{p.day}</span>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: p.italic ? 'italic' : 'normal', marginTop: 2 }}>
-                    {p.label}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Link to={ROUTES.planning} className="btn btn-primary" style={{ alignSelf: 'flex-start', marginTop: 'auto' }}>
-            {UI.planningCta}
+          <Link to="/courses" style={{
+            display: 'flex', alignItems: 'center', gap: '0.3rem',
+            fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none',
+          }}>
+            Voir tout <ChevronRight size={14} />
           </Link>
         </div>
-
-        {/* Assistant IA */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="section-header">
-            <h3 className="section-title">
-              <Sparkles size={16} style={{ color: '#a18cd1' }} />
-              {UI.aiTitle}
-            </h3>
-          </div>
-          <div className="glass-light" style={{ padding: '0.85rem 1rem', borderRadius: 'var(--r-lg)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            {UI.aiPlaceholder}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            {data.ai.map((suggestion, i) => (
-              <Link key={i} to={ROUTES.assistant} style={{ textDecoration: 'none' }}>
-                <div className="glass-light" style={{
-                  display: 'flex', alignItems: 'center', gap: '0.6rem',
-                  padding: '0.6rem 0.85rem', borderRadius: 'var(--r-md)',
-                  fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)',
-                  cursor: 'pointer', transition: 'var(--t)',
-                }} onMouseOver={e => e.currentTarget.style.background = 'white'} onMouseOut={e => e.currentTarget.style.background = 'var(--bg-glass-light)'}>
-                  <Play size={12} style={{ color: 'var(--primary)', fill: 'var(--primary)' }} />
-                  {suggestion}
-                </div>
-              </Link>
-            ))}
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem' }}>
+          {data.subjects.map((sub, i) => (
+            <Link
+              key={i}
+              to="/courses"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.85rem',
+                padding: '1rem 1.25rem', borderRadius: 16,
+                background: sub.bg, border: `1px solid ${sub.color}25`,
+                textDecoration: 'none', transition: 'all 0.25s',
+                animation: `fadeUp 0.5s ease ${500 + i * 80}ms both`,
+              }}
+              onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 12px 28px ${sub.color}20`; }}
+              onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
+              <span style={{ fontSize: '1.5rem' }}>{sub.icon}</span>
+              <div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: sub.color }}>{sub.name}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>Voir les cours →</div>
+              </div>
+            </Link>
+          ))}
         </div>
-
       </div>
-    </div >
+
+    </div>
   );
 }

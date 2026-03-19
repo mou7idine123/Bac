@@ -14,6 +14,7 @@ const newEmptyQuiz = (series = 'both') => ({
 
 const newEmptyQuestion = () => ({
   question_text: '',
+  explanation: '',
   answers: [
     { answer_text: '', is_correct: 1 },
     { answer_text: '', is_correct: 0 },
@@ -114,6 +115,13 @@ export default function AdminQuizzes() {
     setFormData(f => {
       const qs = [...f.questions];
       qs[qi] = { ...qs[qi], question_text: text };
+      return { ...f, questions: qs };
+    });
+
+  const setQExplanation = (qi, text) =>
+    setFormData(f => {
+      const qs = [...f.questions];
+      qs[qi] = { ...qs[qi], explanation: text };
       return { ...f, questions: qs };
     });
 
@@ -233,8 +241,14 @@ export default function AdminQuizzes() {
                 placeholder="Texte de la question..."
                 value={q.question_text}
                 onChange={e => setQText(qi, e.target.value)}
-                style={{ ...inp, minHeight: 70, marginBottom: '1rem', resize: 'vertical' }}
+                style={{ ...inp, minHeight: 70, marginBottom: '0.6rem', resize: 'vertical' }}
                 required
+              />
+              <textarea
+                placeholder="Correction / Explication (s'affiche si mauvaise réponse)..."
+                value={q.explanation || ''}
+                onChange={e => setQExplanation(qi, e.target.value)}
+                style={{ ...inp, minHeight: 60, marginBottom: '1rem', resize: 'vertical', fontSize: '0.82rem', borderColor: '#e2e8f0' }}
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.7rem' }}>
                 {q.answers.map((a, ai) => (

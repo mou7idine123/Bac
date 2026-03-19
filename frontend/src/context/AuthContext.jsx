@@ -34,9 +34,21 @@ export function AuthProvider({ children }) {
       .then(r => r.json())
       .then(data => {
         if (data.user) {
-          // Admins always see Série C content in student-facing pages
           if (data.user.role === 'admin') data.user.series = 'C';
           setUser(data.user);
+          // Trigger streak check-in if student
+          if (data.user.role === 'student') {
+            authFetch('/streak/check-in', { method: 'POST' })
+              .then(r => r.json())
+              .then(sData => {
+                if (sData.success && sData.updated) {
+                  // Refresh user data to get updated streak in context if needed
+                  // but for now the user object from /auth/me already had the old one, 
+                  // we could update it here manually if we want it to be reactive immediately
+                  setUser(prev => ({ ...prev, current_streak: sData.current_streak }));
+                }
+              });
+          }
         } else clearToken();
       })
       .catch(() => clearToken())

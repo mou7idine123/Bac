@@ -32,7 +32,7 @@ export default function ChapterSummaries() {
         setLoading(true);
         try {
             const token = localStorage.getItem('bac_token');
-            const res = await fetch(`${API_BASE_URL}/courses/library?series=${series}`, {
+            const res = await fetch(`${API_BASE_URL}/courses/resumes?series=${series}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -56,13 +56,13 @@ export default function ChapterSummaries() {
 
     const activeSubject = subjects.find(s => s.id === activeSubjectId) ?? subjects[0];
 
-    // Collect all chapters with resume from active subject
-    const chapters = (activeSubject?.chapters || []).filter(ch => {
-        if (search) return (ch.title || '').toLowerCase().includes(search.toLowerCase());
+    // Collect independent resumes (those from the 'resumes' table)
+    const resumes = (activeSubject?.resumes || []).filter(r => {
+        if (search) return (r.title || '').toLowerCase().includes(search.toLowerCase());
         return true;
     });
 
-    // Sheets (fiches de révision) from all chapters of active subject
+    // Sheets (fiches de révision)
     const sheets = (activeSubject?.sheets || []).filter(sh => {
         if (search) return (sh.title || '').toLowerCase().includes(search.toLowerCase());
         return true;
@@ -86,15 +86,15 @@ export default function ChapterSummaries() {
             {/* Hero */}
             <div className="page-hero">
                 <div>
-                    <h1 className="page-title">Résumés de Chapitres</h1>
-                    <p className="page-subtitle">Fiches de révision et résumés essentiels — <strong>Série {series}</strong></p>
+                    <h1 className="page-title">Résumés & Synthèses</h1>
+                    <p className="page-subtitle">Documents de révision et synthèses de cours — <strong>Série {series}</strong></p>
                 </div>
                 <div style={{ position: 'relative' }}>
                     <Search size={15} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                     <input
                         className="input-field"
                         style={{ paddingLeft: '2.5rem', width: 220 }}
-                        placeholder="Rechercher un chapitre..."
+                        placeholder="Rechercher un résumé..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
@@ -126,26 +126,26 @@ export default function ChapterSummaries() {
                 ))}
             </div>
 
-            {/* Content: chapters with resume PDF + sheets */}
+            {/* Content: Independent resumes + sheets */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
 
-                {/* Column 1: Chapters with resume_pdf */}
+                {/* Column 1: Resumes from new table */}
                 <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
                         <div style={{ width: 6, height: 26, background: activeSubject?.gradient || gradients[0], borderRadius: '4px' }} />
-                        <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Résumés de chapitres</h2>
+                        <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Résumés PDF</h2>
                     </div>
 
-                    {chapters.length === 0 ? (
+                    {resumes.length === 0 ? (
                         <div className="card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            {search ? `Aucun chapitre trouvé pour "${search}".` : 'Aucun résumé disponible pour cette matière.'}
+                            {search ? `Aucun résumé trouvé pour "${search}".` : 'Aucun résumé PDF disponible pour cette matière.'}
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            {chapters.map((ch, i) => (
-                                <div key={ch.id} className="card" style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--border-soft)', transition: 'var(--t)' }}>
+                            {resumes.map((r, i) => (
+                                <div key={r.id} className="card" style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--border-soft)', transition: 'var(--t)' }}>
                                     <button
-                                        onClick={() => setExpandedChapter(expandedChapter === ch.id ? null : ch.id)}
+                                        onClick={() => setExpandedChapter(expandedChapter === r.id ? null : r.id)}
                                         style={{
                                             display: 'flex', alignItems: 'center', gap: '1rem',
                                             padding: '1rem 1.25rem', width: '100%', textAlign: 'left',
@@ -161,43 +161,35 @@ export default function ChapterSummaries() {
                                             {i + 1}
                                         </div>
                                         <div style={{ flex: 1 }}>
-                                            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{ch.title}</div>
-                                            {ch.resume_pdf_url && (
-                                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                    <FileText size={11} /> Résumé PDF disponible
-                                                </div>
-                                            )}
+                                            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{r.title}</div>
+                                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                <FileText size={11} /> Document résumé
+                                            </div>
                                         </div>
-                                        {expandedChapter === ch.id ? <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />}
+                                        {expandedChapter === r.id ? <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />}
                                     </button>
 
-                                    {expandedChapter === ch.id && (
+                                    {expandedChapter === r.id && (
                                         <div style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid var(--border-soft)' }}>
-                                            {ch.resume_pdf_url ? (
-                                                <a
-                                                    href={`${BACKEND_URL}${ch.resume_pdf_url}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    style={{
-                                                        display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-                                                        marginTop: '1rem', padding: '0.6rem 1.25rem',
-                                                        borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem',
-                                                        background: `linear-gradient(135deg, ${activeSubject?.color || '#667eea'}, #764ba2)`,
-                                                        color: 'white', textDecoration: 'none',
-                                                        boxShadow: `0 4px 12px ${activeSubject?.color || '#667eea'}30`,
-                                                        transition: 'var(--t)',
-                                                    }}
-                                                >
-                                                    <ExternalLink size={15} /> Ouvrir le résumé PDF
-                                                </a>
-                                            ) : (
-                                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '1rem' }}>
-                                                    Aucun résumé PDF disponible pour ce chapitre.
-                                                </p>
-                                            )}
-                                            {ch.description && (
+                                            <a
+                                                href={`${BACKEND_URL}${r.pdf_url}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                                                    marginTop: '1rem', padding: '0.6rem 1.25rem',
+                                                    borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem',
+                                                    background: `linear-gradient(135deg, ${activeSubject?.color || '#667eea'}, #764ba2)`,
+                                                    color: 'white', textDecoration: 'none',
+                                                    boxShadow: `0 4px 12px ${activeSubject?.color || '#667eea'}30`,
+                                                    transition: 'var(--t)',
+                                                }}
+                                            >
+                                                <ExternalLink size={15} /> Ouvrir le PDF
+                                            </a>
+                                            {r.description && (
                                                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.75rem', lineHeight: 1.6 }}>
-                                                    {ch.description}
+                                                    {r.description}
                                                 </p>
                                             )}
                                         </div>

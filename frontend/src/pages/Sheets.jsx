@@ -92,7 +92,7 @@ export default function Sheets() {
             style={{
               display: 'flex', alignItems: 'center', gap: '0.5rem',
               padding: '0.55rem 1.1rem', borderRadius: 'var(--r-full)',
-              border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+              cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
               transition: 'var(--t)',
               background: activeId === s.id ? s.gradient : 'var(--bg-glass-white)',
               color: activeId === s.id ? 'white' : 'var(--text-secondary)',

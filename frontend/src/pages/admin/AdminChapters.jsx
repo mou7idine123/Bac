@@ -184,7 +184,7 @@ export default function AdminChapters() {
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>Résumé du Chapitre (PDF Optionnel)</label>
+                            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>Fichier du cours (PDF Optionnel)</label>
                             <input
                                 type="file"
                                 accept=".pdf"

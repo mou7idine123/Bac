@@ -370,7 +370,7 @@ class AdminController {
         if ($method === 'GET') {
             $series = $_GET['series'] ?? 'C';
             $stmt = $this->db->prepare("
-                SELECT c.id, c.title, c.order_index, c.subject_id, s.name as subject_name, c.series, c.resume_pdf_url
+                SELECT c.id, c.title, c.order_index, c.subject_id, s.name as subject_name, c.series, c.pdf_url
                 FROM chapters c
                 JOIN subjects s ON c.subject_id = s.id
                 JOIN series_subjects ss ON s.id = ss.subject_id
@@ -415,7 +415,7 @@ class AdminController {
                         $input['series'] ?? 'C'
                     ];
                     if ($pdfUrl) {
-                        $sql .= ", resume_pdf_url=?";
+                        $sql .= ", pdf_url=?";
                         $params[] = $pdfUrl;
                     }
                     $sql .= " WHERE id=?";
@@ -424,7 +424,7 @@ class AdminController {
                     $stmt->execute($params);
                     $this->jsonResponse(['success' => true, 'message' => 'Chapitre mis à jour.']);
                 } else {
-                    $stmt = $this->db->prepare("INSERT INTO chapters (title, subject_id, order_index, series, resume_pdf_url) VALUES (?, ?, ?, ?, ?)");
+                    $stmt = $this->db->prepare("INSERT INTO chapters (title, subject_id, order_index, series, pdf_url) VALUES (?, ?, ?, ?, ?)");
                     $stmt->execute([
                         $input['title'],
                         $input['subject_id'],
@@ -443,6 +443,65 @@ class AdminController {
                 $stmt = $this->db->prepare("DELETE FROM chapters WHERE id = ?");
                 $stmt->execute([$id]);
                 $this->jsonResponse(['success' => true, 'message' => 'Chapitre supprimé.']);
+            } catch (\Exception $e) {
+                $this->jsonResponse(['error' => 'Erreur: ' . $e->getMessage()], 500);
+            }
+        }
+    }
+
+    // GET /admin/resumes?series=X | POST /admin/resumes | DELETE /admin/resumes/{id}
+    public function resumes($id = null) {
+        $this->requireAdmin();
+        $method = $_SERVER['REQUEST_METHOD'];
+        $id = $id ?? ($_GET['id'] ?? null);
+
+        if ($method === 'GET') {
+            $series = $_GET['series'] ?? 'C';
+            $stmt = $this->db->prepare("
+                SELECT r.id, r.title, r.description, r.pdf_url, r.series, r.created_at, s.name AS subject_name, r.subject_id
+                FROM resumes r
+                JOIN subjects s ON r.subject_id = s.id
+                WHERE (r.series = :series OR r.series = 'both')
+                ORDER BY r.subject_id, r.id DESC
+            ");
+            $stmt->execute(['series' => $series]);
+            $this->jsonResponse(['success' => true, 'resumes' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        }
+        else if ($method === 'POST') {
+            $input = $_POST;
+            if (empty($input['title']) || empty($input['subject_id'])) {
+                $this->jsonResponse(['error' => 'Titre et Matière sont requis'], 400);
+            }
+
+            $pdfUrl = null;
+            if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = __DIR__ . '/../../public/uploads/resumes/';
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+                $filename = uniqid('resume_') . '_' . preg_replace('/[^a-zA-Z0-9.\-_]/', '', basename($_FILES['pdf_file']['name']));
+                if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $uploadDir . $filename)) {
+                    $pdfUrl = '/uploads/resumes/' . $filename;
+                }
+            }
+
+            try {
+                $stmt = $this->db->prepare("INSERT INTO resumes (title, description, subject_id, series, pdf_url) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([
+                    trim($input['title']),
+                    trim($input['description'] ?? ''),
+                    (int)$input['subject_id'],
+                    $input['series'] ?? 'both',
+                    $pdfUrl
+                ]);
+                $this->jsonResponse(['success' => true, 'message' => 'Résumé ajouté avec succès.', 'id' => $this->db->lastInsertId()]);
+            } catch (\Exception $e) {
+                $this->jsonResponse(['error' => 'Erreur: ' . $e->getMessage()], 500);
+            }
+        }
+        else if ($method === 'DELETE' && $id) {
+            try {
+                $stmt = $this->db->prepare("DELETE FROM resumes WHERE id = ?");
+                $stmt->execute([$id]);
+                $this->jsonResponse(['success' => true, 'message' => 'Résumé supprimé.']);
             } catch (\Exception $e) {
                 $this->jsonResponse(['error' => 'Erreur: ' . $e->getMessage()], 500);
             }
@@ -981,10 +1040,11 @@ class AdminController {
                 // Insert Questions & Answers
                 foreach ($questions as $q) {
                     $qText = trim($q['question_text'] ?? '');
+                    $qExpl = trim($q['explanation'] ?? '');
                     if ($qText === '') continue;
 
-                    $stmtQ = $this->db->prepare("INSERT INTO questions (quiz_id, question_text) VALUES (?, ?)");
-                    $stmtQ->execute([$quizId, $qText]);
+                    $stmtQ = $this->db->prepare("INSERT INTO questions (quiz_id, question_text, explanation) VALUES (?, ?, ?)");
+                    $stmtQ->execute([$quizId, $qText, $qExpl]);
                     $questionId = $this->db->lastInsertId();
 
                     $answers = $q['answers'] ?? [];
