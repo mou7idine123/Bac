@@ -117,7 +117,7 @@ class CoursesController {
             $stmtCh = $db->prepare("
                 SELECT id, title, series
                 FROM chapters
-                WHERE subject_id = ? AND JSON_CONTAINS(series, JSON_QUOTE(?))
+                WHERE subject_id = ? AND JSON_CONTAINS(series, ?)
                 ORDER BY id ASC
             ");
             $stmtCh->execute([$subject['id'], (string)(int)$series]);
@@ -185,7 +185,7 @@ class CoursesController {
             WHERE JSON_CONTAINS(q.series, :series)
             ORDER BY q.id DESC
         ");
-        $stmt->execute(['series' => (int)$series, 'user_id' => $userId]);
+        $stmt->execute(['series' => (string)(int)$series, 'user_id' => $userId]);
         $quizzes = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         
         // Convert to boolean for frontend convenience
@@ -281,7 +281,7 @@ class CoursesController {
             ORDER BY e.id DESC
         ";
         $stmt = $db->prepare($sql);
-        $stmt->execute(['series' => (int)$series, 'user_id' => $userId]);
+        $stmt->execute(['series' => (string)(int)$series, 'user_id' => $userId]);
         $exercises = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         foreach ($exercises as &$ex) {

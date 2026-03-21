@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Layers, Plus, Search, Trash2, X, PlusCircle, ArrowLeft, Filter, Edit } from 'lucide-react';
+import { BookOpen, Layers, Plus, Search, Trash2, X, PlusCircle, ArrowLeft, Filter, Edit, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '../../apiConfig';
 
 export default function AdminSubjects() {
@@ -79,19 +79,8 @@ export default function AdminSubjects() {
     const openChaptersModal = (subject) => {
         setSelectedSubject(subject);
         setNewChapterTitle('');
-        // Get valid series IDs from subject
-        let subjectSeries = [];
-        try {
-            subjectSeries = typeof subject.series_name === 'string'
-                ? JSON.parse(subject.series_name)
-                : (subject.series_name || []);
-        } catch (e) {
-            subjectSeries = [subject.series_name];
-        }
-        if (!Array.isArray(subjectSeries)) subjectSeries = [subjectSeries];
-
-        // Convert to numeric IDs
-        const validIds = subjectSeries.map(id => parseInt(id));
+        // Get valid series IDs from series_map keys
+        const validIds = subject.series_map ? Object.keys(subject.series_map).map(Number) : [];
         setNewChapterSeries(validIds);
         fetchChapters(subject.id);
     };
@@ -469,8 +458,11 @@ export default function AdminSubjects() {
                                 <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Gérer les Chapitres</h3>
                                 <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
                                     {selectedSubject.name} - {(() => {
-                                        let s = selectedSubject.series_name;
-                                        try { return Array.isArray(JSON.parse(s)) ? JSON.parse(s).join(' & ') : s; } catch (e) { return s; }
+                                        const validIds = selectedSubject.series_map ? Object.keys(selectedSubject.series_map).map(Number) : [];
+                                        return seriesList
+                                            .filter(s => validIds.includes(s.id))
+                                            .map(s => s.name)
+                                            .join(' & ');
                                     })()}
                                 </p>
                             </div>
@@ -502,16 +494,7 @@ export default function AdminSubjects() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', paddingLeft: '0.2rem', flexWrap: 'wrap' }}>
                                     <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>Filières :</span>
                                     {(() => {
-                                        let subjectSeries = [];
-                                        try {
-                                            subjectSeries = typeof selectedSubject.series_name === 'string'
-                                                ? JSON.parse(selectedSubject.series_name)
-                                                : (selectedSubject.series_name || []);
-                                        } catch (e) {
-                                            subjectSeries = [selectedSubject.series_name];
-                                        }
-                                        if (!Array.isArray(subjectSeries)) subjectSeries = [subjectSeries];
-                                        const validIds = subjectSeries.map(id => parseInt(id));
+                                        const validIds = selectedSubject.series_map ? Object.keys(selectedSubject.series_map).map(Number) : [];
 
                                         return seriesList
                                             .filter(s => validIds.includes(s.id))

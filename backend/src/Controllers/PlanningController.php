@@ -27,6 +27,23 @@ class PlanningController {
         exit;
     }
 
+    private function getEnv($key, $default = null) {
+        $envFile = __DIR__ . '/../../.env';
+        if (file_exists($envFile)) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if (strpos($line, '#') === 0 || !strpos($line, '=')) continue;
+                list($name, $value) = explode('=', $line, 2);
+                $name = trim($name);
+                $value = trim(explode('#', $value)[0]); // remove comments
+                $value = trim($value, "'\"");
+                if ($name === $key) return $value;
+            }
+        }
+        return $default;
+    }
+
     // GET /planning/get
     public function get() {
         try {
@@ -77,13 +94,12 @@ class PlanningController {
             
             $progress_percentage = $total_sessions > 0 ? floor(($completed_sessions / $total_sessions) * 100) : 0;
 
-            // Using title for bac_date and end_date for hours_per_day (a quick hack to fit existing DB without changing schema)
             $this->jsonResponse([
                 "has_plan" => true,
                 "plan_info" => [
                     "id" => $plan['id'],
                     "bac_date" => $plan['bac_date'],
-                    "hours_per_day" => $plan['hours_per_day'],
+                    "hours_per_day" => (int)$plan['hours_per_day'],
                     "progress" => $progress_percentage,
                     "total_sessions" => $total_sessions,
                     "completed_sessions" => $completed_sessions
@@ -101,123 +117,140 @@ class PlanningController {
         $input = json_decode(file_get_contents('php://input'), true);
         
         $bac_date = $input['bac_date'] ?? null;
-        $hours = $input['hours_per_day'] ?? 3;
-        $subjects = $input['subjects'] ?? [];
+        $hours_per_day = $input['hours_per_day'] ?? 4;
+        $selected_subjects = $input['selected_subjects'] ?? [];
+        $assessments = $input['assessments'] ?? [];
 
-        if (!$bac_date || empty($subjects)) {
+        if (!$bac_date || empty($selected_subjects)) {
             $this->jsonResponse(["message" => "Données incomplètes."], 400);
         }
 
+        $apiKey = $this->getEnv('GROQ_API_KEY');
+        if (!$apiKey) {
+            $this->jsonResponse(["message" => "Clé API Groq manquante."], 500);
+        }
+
         try {
+            // 1. Prepare AI Prompt
+            $today = date('Y-m-d');
+            $prompt = "Aujourd'hui nous sommes le $today. Je prépare mon Bac pour le $bac_date.
+            J'ai $hours_per_day heures par jour pour réviser.
+            
+            Voici mes matières et leur importance (coefficient) :
+            " . json_encode($selected_subjects) . "
+            
+            Voici mon auto-évaluation par chapitre (niveau de 1 à 10, où 1 est débutant et 10 est expert) :
+            " . json_encode($assessments) . "
+            
+            Génère un planning d'étude quotidien détaillé du " . date('Y-m-d', strtotime('+1 day')) . " jusqu'au $bac_date.
+            Priorise les chapitres où mon niveau est faible (proche de 1) et respecte le temps quotidien imparti ($hours_per_day h).
+            Répartis les sessions intelligemment pour ne pas saturer.
+            
+            Réponds EXCLUSIVEMENT sous format JSON valide avec la structure suivante :
+            {
+              \"days\": [
+                {
+                  \"date\": \"YYYY-MM-DD\",
+                  \"sessions\": [
+                    { \"subject\": \"Nom de la matière\", \"chapter\": \"Titre du chapitre\", \"duration_minutes\": 60 }
+                  ]
+                }
+              ]
+            }";
+
+            // 2. Call Groq API
+            $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $apiKey,
+                'Content-Type: application/json'
+            ]);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+                'model' => 'llama-3.3-70b-versatile',
+                'messages' => [
+                    ['role' => 'system', 'content' => 'Tu es un expert en orientation et réussite scolaire. Tu génères des plannings d’étude optimisés au format JSON.'],
+                    ['role' => 'user', 'content' => $prompt]
+                ],
+                'response_format' => ['type' => 'json_object'],
+                'temperature' => 0.5
+            ]));
+
+            $response = curl_exec($ch);
+            if (curl_errno($ch)) throw new Exception(curl_error($ch));
+            curl_close($ch);
+
+            $aiData = json_decode($response, true);
+            $planJson = json_decode($aiData['choices'][0]['message']['content'], true);
+
+            if (!isset($planJson['days'])) {
+                throw new Exception("L'IA n'a pas renvoyé de planning valide.");
+            }
+
+            // 3. Save to Database
             $this->db->beginTransaction();
 
-            $stmt = $this->db->prepare("DELETE FROM study_plans WHERE user_id = :uid");
-            $stmt->execute([':uid' => $this->userId]);
+            // Clear old plan
+            $stmt = $this->db->prepare("DELETE FROM study_plans WHERE user_id = ?");
+            $stmt->execute([$this->userId]);
 
-            $startDate = date('Y-m-d');
-            // Hack: store bac_date in title, and hours in end_date for compatibility without schema change
-            $stmt = $this->db->prepare("INSERT INTO study_plans (user_id, title, start_date, end_date) VALUES (:uid, :title, :sdate, :edate)");
+            // Create new plan
+            $stmt = $this->db->prepare("INSERT INTO study_plans (user_id, title, start_date, end_date) VALUES (?, ?, ?, ?)");
             $stmt->execute([
-                ':uid' => $this->userId,
-                ':title' => $bac_date,
-                ':sdate' => $startDate,
-                ':edate' => "2026-12-31" // we don't need real end_date, hours encoded below
+                $this->userId,
+                (string)$hours_per_day,
+                $today,
+                $bac_date
             ]);
-            $plan_id = $this->db->lastInsertId();
-            
-            // Re-update the end_date to be hours so we can fetch it easily if we want, or just keep it simple.
-            // Better yet, I'll just ALTER TABLE study_plans if I can, but since I can't easily, I'll encode hours in end_date by adding X days to 2000-01-01 maybe?
-            // Actually, let's just make end_date the bac_date!
-            $stmt = $this->db->prepare("UPDATE study_plans SET end_date = :bac, title = :hours WHERE id = :pid");
-            $stmt->execute([':bac' => $bac_date, ':hours' => $hours, ':pid' => $plan_id]);
+            $planId = $this->db->lastInsertId();
 
-            // Get subjects IDs
-            $placeholders = str_repeat('?,', count($subjects) - 1) . '?';
-            $stmt = $this->db->prepare("SELECT id, name FROM subjects WHERE name IN ($placeholders)");
-            $stmt->execute($subjects);
-            $dbSubjects = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Cache Subject/Chapter IDs to avoid repeated queries
+            $subjectsInDb = [];
+            $chaptersInDb = [];
             
-            $subjMap = [];
-            foreach ($dbSubjects as $s) $subjMap[$s['name']] = $s['id'];
+            $stmtSub = $this->db->query("SELECT id, name FROM subjects");
+            while($row = $stmtSub->fetch(PDO::FETCH_ASSOC)) $subjectsInDb[strtolower(trim($row['name']))] = $row['id'];
 
-            // Calculate days
-            $start = new DateTime($startDate);
-            $end = new DateTime($bac_date);
-            if ($start >= $end) throw new Exception("La date du Bac doit être dans le futur.");
-            $days = $start->diff($end)->days;
-            if ($days < 7) throw new Exception("Prévoyez au moins une semaine.");
-
-            // Smart Generation
-            $all_topics = [];
-            foreach ($subjects as $subjName) {
-                if (!isset($subjMap[$subjName])) continue;
-                $sId = $subjMap[$subjName];
-                
-                $stmtC = $this->db->prepare("SELECT id, title FROM chapters WHERE subject_id = ?");
-                $stmtC->execute([$sId]);
-                $chapters = $stmtC->fetchAll(PDO::FETCH_ASSOC);
-                
-                if (empty($chapters)) {
-                    $all_topics[] = ['sId' => $sId, 'cId' => null, 'time' => 120];
-                } else {
-                    foreach ($chapters as $ch) {
-                        $all_topics[] = ['sId' => $sId, 'cId' => $ch['id'], 'time' => 60];
-                    }
-                }
-            }
-            
-            shuffle($all_topics); 
-
-            $sessions = [];
-            $daily_mins = $hours * 60;
-            $tIndex = 0;
-            $currentDate = clone $start;
-            
-            for ($i = 0; $i < $days; $i++) {
-                $minsLeft = $daily_mins;
-                $dStr = $currentDate->format('Y-m-d');
-                
-                while ($minsLeft > 0 && count($all_topics) > 0) {
-                    if ($tIndex >= count($all_topics)) {
-                        $tIndex = 0;
-                        shuffle($all_topics);
-                        // Make revision rounds
-                        foreach ($all_topics as &$t) $t['time'] = 60;
-                    }
-                    
-                    $dur = min(60, $minsLeft);
-                    
-                    $sessions[] = [
-                        'pid' => $plan_id,
-                        'sid' => $all_topics[$tIndex]['sId'],
-                        'cid' => $all_topics[$tIndex]['cId'],
-                        'dur' => $dur,
-                        'date' => $dStr
-                    ];
-                    
-                    $minsLeft -= $dur;
-                    $all_topics[$tIndex]['time'] -= $dur;
-                    
-                    if ($all_topics[$tIndex]['time'] <= 0) {
-                        array_splice($all_topics, $tIndex, 1);
-                    } else {
-                        $tIndex++;
-                    }
-                }
-                $currentDate->modify('+1 day');
+            $stmtChap = $this->db->query("SELECT id, title, subject_id FROM chapters");
+            while($row = $stmtChap->fetch(PDO::FETCH_ASSOC)) {
+                $chaptersInDb[strtolower(trim($row['title']))] = [
+                    'id' => $row['id'],
+                    'sid' => $row['subject_id']
+                ];
             }
 
-            $stmt = $this->db->prepare("INSERT INTO study_sessions (study_plan_id, subject_id, chapter_id, duration_minutes, scheduled_date) VALUES (?, ?, ?, ?, ?)");
-            foreach ($sessions as $s) {
-                $stmt->execute([$s['pid'], $s['sid'], $s['cid'], $s['dur'], $s['date']]);
+            $stmtSess = $this->db->prepare("INSERT INTO study_sessions (study_plan_id, subject_id, chapter_id, duration_minutes, scheduled_date) VALUES (?, ?, ?, ?, ?)");
+
+            foreach ($planJson['days'] as $day) {
+                $dDate = $day['date'];
+                foreach ($day['sessions'] as $sess) {
+                    $sName = strtolower(trim($sess['subject']));
+                    $cTitle = strtolower(trim($sess['chapter']));
+                    
+                    $sId = $subjectsInDb[$sName] ?? null;
+                    $cId = $chaptersInDb[$cTitle]['id'] ?? null;
+                    
+                    // If AI gives a chapter name without subject mapping, try to recover sid
+                    if (!$sId && $cId) $sId = $chaptersInDb[$cTitle]['sid'];
+                    
+                    if ($sId) {
+                        $stmtSess->execute([
+                            $planId,
+                            $sId,
+                            $cId,
+                            (int)$sess['duration_minutes'],
+                            $dDate
+                        ]);
+                    }
+                }
             }
 
             $this->db->commit();
-            $this->jsonResponse(["message" => "OK", "plan_id" => $plan_id]);
+            $this->jsonResponse(["success" => true, "message" => "Planning généré avec succès."]);
 
         } catch (Exception $e) {
-            $this->db->rollBack();
-            $this->jsonResponse(["message" => $e->getMessage()], 500);
+            if ($this->db->inTransaction()) $this->db->rollBack();
+            $this->jsonResponse(["message" => "Erreur", "error" => $e->getMessage()], 500);
         }
     }
 
@@ -229,9 +262,12 @@ class PlanningController {
 
         if (!$sid) $this->jsonResponse(['error' => 'ID requis'], 400);
 
-        $stmt = $this->db->prepare("UPDATE study_sessions SET is_completed = ? WHERE id = ?");
-        $stmt->execute([$done, $sid]);
-        
-        $this->jsonResponse(['success' => true]);
+        try {
+            $stmt = $this->db->prepare("UPDATE study_sessions SET is_completed = ? WHERE id = ?");
+            $stmt->execute([$done, $sid]);
+            $this->jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            $this->jsonResponse(['error' => $e->getMessage()], 500);
+        }
     }
 }
