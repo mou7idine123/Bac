@@ -131,7 +131,6 @@ export default function Dashboard() {
   const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
 
   const [stats, setStats] = useState({
-    quiz_stats: { attempts: 0, avg_score: 0, completed: 0, total: 0 },
     exercise_stats: { total: 0, completed: 0 },
     exam_stats: { total: 0, completed: 0 },
   });
@@ -190,7 +189,6 @@ export default function Dashboard() {
     const add = (done, t) => { if (t > 0) { items++; total += (done / t) * 100; } };
     add(stats.exercise_stats.completed, stats.exercise_stats.total);
     add(stats.exam_stats.completed, stats.exam_stats.total);
-    add(stats.quiz_stats.completed, stats.quiz_stats.total);
     return items > 0 ? Math.round(total / items) : 0;
   };
 
@@ -262,7 +260,7 @@ export default function Dashboard() {
           </p>
 
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
-            <Link to="/quizzes" style={{
+            <Link to="/exercises" style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
               padding: '0.65rem 1.25rem', borderRadius: 12,
               background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)',
@@ -273,7 +271,7 @@ export default function Dashboard() {
               onMouseOver={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.22)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
               onMouseOut={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'none'; }}
             >
-              <Play size={14} fill="white" /> Démarrer un QCM
+              <Play size={14} fill="white" /> Exercices
             </Link>
             <Link to="/planning" style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
@@ -344,12 +342,6 @@ export default function Dashboard() {
           done={stats.exam_stats.completed} total={stats.exam_stats.total}
           color="#f59e0b" gradient="linear-gradient(90deg, #f59e0b, #fbbf24)"
           delay={80}
-        />
-        <StatCard
-          title="QCM Validés" icon={Star}
-          done={stats.quiz_stats.completed} total={stats.quiz_stats.total}
-          color="#8b5cf6" gradient="linear-gradient(90deg, #8b5cf6, #a78bfa)"
-          delay={160}
         />
       </div>
 

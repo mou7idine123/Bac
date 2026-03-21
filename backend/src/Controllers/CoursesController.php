@@ -274,14 +274,20 @@ class CoursesController {
         
         $sql = "
             SELECT e.id, e.title, e.description, e.difficulty, e.type, e.pdf_path, e.subject_id, s.name as subject, e.series,
-                   (SELECT CASE WHEN status = 'completed' THEN 1 ELSE 0 END FROM exercise_progress WHERE user_id = :user_id AND exercise_id = e.id LIMIT 1) as is_completed
+                   e.creator_id, e.is_public, e.statement_content, e.correction_content,
+                   (SELECT CASE WHEN status = 'completed' THEN 1 ELSE 0 END FROM exercise_progress WHERE user_id = :user_id1 AND exercise_id = e.id LIMIT 1) as is_completed
             FROM exercises e 
             JOIN subjects s ON e.subject_id = s.id
             WHERE JSON_CONTAINS(e.series, :series)
+              AND (e.creator_id IS NULL OR e.is_public = 1 OR e.creator_id = :user_id2)
             ORDER BY e.id DESC
         ";
         $stmt = $db->prepare($sql);
-        $stmt->execute(['series' => (string)(int)$series, 'user_id' => $userId]);
+        $stmt->execute([
+            'series' => (string)(int)$series, 
+            'user_id1' => $userId,
+            'user_id2' => $userId
+        ]);
         $exercises = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         foreach ($exercises as &$ex) {

@@ -12,7 +12,6 @@ const navItems = [
   { path: '/summaries', label: 'Résumés', icon: BookMarked },
   { path: '/sheets', label: 'Fiches', icon: FileText },
   { path: '/exercises', label: 'Exercices', icon: CheckSquare },
-  { path: '/quizzes', label: 'QCM', icon: CheckSquare },
   { path: '/exams', label: 'Annales', icon: FileText },
   { path: '/assistant', label: 'Assistant IA', icon: MessageSquare, badge: 'IA' },
   { path: '/planning', label: 'Planning', icon: Calendar },

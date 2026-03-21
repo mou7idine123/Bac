@@ -12,12 +12,11 @@
 |--------|-------------|
 | 📊 **Dashboard** | Vue d'ensemble personnalisée : progression, streak, recommandations, accès rapide |
 | 📚 **Cours** | Bibliothèque de leçons par matière et chapitre, lecture de PDF et contenu riche |
-| 📝 **QCM** | Quiz à choix multiples avec validation automatique (100% requis), explications et aide IA |
-| 🏋️ **Exercices** | Exercices pratiques avec correction |
+| 🏋️ **Exercices** | Exercices pratiques avec correction et Générateur IA |
 | 📄 **Fiches** | Fiches de révision par chapitre |
 | 🗂️ **Annales** | Sujets d'examens officiels (PDF + corrections) |
 | 🗓️ **Planning** | Plan de révision personnalisé et calendrier d'étude |
-| 🤖 **Assistant IA** | Tuteur conversationnel 24h/24 pour expliquer, générer des exercices et créer des fiches |
+| 🤖 **Assistant IA** | Tuteur conversationnel (Llama-3.3-70B) avec vision (LLaMA-4-Scout) : explique les cours, génère des exercices, lit les documents |
 | 🔥 **Streak & Badges** | Système de gamification : série quotidienne, badges de progression |
 
 ### Espace Admin
@@ -25,11 +24,10 @@
 |------|-------------|
 | 📊 Dashboard | Statistiques globales de la plateforme |
 | 👥 Utilisateurs | Gestion des comptes étudiants |
-| 📖 Matières | Création et gestion des matières |
+| 📖 Matières | Création et gestion des matières (Séries dynamiques via JSON) |
 | 📂 Chapitres | Organisation des chapitres par matière |
 | 📋 Cours & Leçons | Ajout de contenu pédagogique |
-| ✏️ Exercices | Gestion des exercices |
-| 🧪 QCM | Création de quiz avec questions, réponses et explications |
+| ✏️ Exercices | Gestion des exercices (Classiques ou générés par IA) |
 | 📑 Annales | Upload des sujets d'examens officiels |
 | 📄 Résumés | Upload des fiches de révision PDF |
 | ⚙️ Paramètres | Configuration générale |
@@ -82,19 +80,16 @@ PrepBac/
 
 | Table | Description |
 |-------|-------------|
-| `users` | Étudiants et admins (rôle, série C/D) |
-| `subjects` | Matières avec couleur et icône |
+| `users` | Étudiants et admins (rôle, sélections dynamiques de séries) |
+| `subjects` | Matières avec couleur, icône et gestion de séries multiples (JSON arrays) |
 | `chapters` | Chapitres par matière |
 | `lessons` | Leçons (contenu HTML/PDF) |
-| `quizzes` | Quiz par chapitre ou matière |
-| `questions` | Questions QCM avec explication |
-| `answers` | Réponses (bonne/mauvaise) |
-| `quiz_attempts` | Tentatives des étudiants |
-| `exams` | Annales officielles (PDF) |
+| `exams` | Annales officielles (PDF) avec filtrage multi-séries |
 | `revision_sheets` | Fiches de révision |
 | `study_plans` | Plannings d'étude |
 | `user_progress` | Progression par chapitre |
-| `ai_conversations` | Historique IA |
+| `ai_conversations` | Historique persistant des conversations avec l'IA avec support des images extraites |
+| `exercises` | Contient les exercices classiques et le markdown/KaTeX pour les exercices générés par IA |
 
 ---
 
@@ -170,11 +165,10 @@ GET  /api/courses/lesson/:id
 GET  /api/admin/chapters?series=C
 ```
 
-### QCM
+### Assistant IA & Génération
 ```
-GET  /api/courses/quizzes
-GET  /api/courses/quizzes/:id
-POST /api/progress/quiz
+POST /api/ai/chat
+POST /api/ai/generate-exercise
 ```
 
 ### Progression
@@ -183,17 +177,12 @@ GET  /api/progress/dashboard
 GET  /api/streak/stats
 ```
 
-### Assistant IA
-```
-POST /api/ai/chat
-```
-
 ### Admin
 ```
-GET|POST|PUT|DELETE /api/admin/quizzes
 GET|POST|PUT|DELETE /api/admin/subjects
 GET|POST|PUT|DELETE /api/admin/chapters
 GET|POST|PUT|DELETE /api/admin/users
+GET|POST|PUT|DELETE /api/admin/series
 ```
 
 ---
@@ -222,11 +211,11 @@ PrepBac utilise un design system custom basé sur des **CSS Variables** avec :
 
 ## 🤖 Intégration IA
 
-L'assistant IA est intégré via l'endpoint `/api/ai/chat`. Le frontend envoie :
-- Le message utilisateur
-- L'historique de conversation (10 derniers échanges)
+L'assistant IA est propulsé par les derniers modèles open-source de classe mondiale :
+- **Llama-3.3-70B-Versatile** sert de professeur principal pour l'explication des concepts, l'organisation des plannings d'étude ou la génération complète d'exercices structurés sur mesure.
+- **Llama-4-Scout (Vision)** permet l'extraction visuelle de documents mathématiques, transformant n'importe quel PDF (comme les annales et fiches de révision) en contexte lisible par l'IA.
 
-L'IA est automatiquement déclenchée depuis les QCM (mauvaise réponse → bouton "Demander à l'IA") avec un prompt contextuel pré-rempli.
+Les réponses sont nativement formatées en intègrant la solution **react-markdown** accompagnée de **rehype-katex** pour le rendu parfait de formules mathématiques complexes.
 
 ---
 
@@ -234,8 +223,9 @@ L'IA est automatiquement déclenchée depuis les QCM (mauvaise réponse → bout
 
 | Série | Matières typiques |
 |-------|-------------------|
-| **C** | Mathématiques, Physique-Chimie, Sciences, Informatique |
-| **D** | Sciences Naturelles, Physique-Chimie, Mathématiques |
+Auparavant limités à des labels codés en dur ('C', 'D'), l'application a migré vers un modèle de base de données à gestion dynamique des séries.
+
+Toutes les ressources de la plateforme (Matières, Chapitres, Exercices, Leçons, etc) stockent désormais un tableau de clés étrangères (`[1, 2]`) dans une structure de colonne `JSON`. Le filtrage se fait efficacement via la clause `JSON_CONTAINS()` de MySQL.
 
 ---
 

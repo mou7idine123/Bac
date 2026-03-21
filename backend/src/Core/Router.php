@@ -43,12 +43,18 @@ class Router {
             return;
         }
         
-        // Special case: /ai/... maps to AIController
+        // Special case: /ai/... maps to AIController or others AI controllers
         if (count($parts) >= 2 && $parts[0] === 'ai') {
             $rawAction = $parts[1];
             $action = lcfirst(str_replace(' ', '', ucwords(str_replace('-', ' ', $rawAction))));
             $controllerClass = "App\\Controllers\\AIController";
             $args = array_slice($parts, 2);
+
+            // Special handling for exercise generation
+            if ($rawAction === 'generate-exercise' || $rawAction === 'generate') {
+                $controllerClass = "App\\Controllers\\ExerciseGeneratorController";
+                $action = 'generate';
+            }
 
             if (class_exists($controllerClass)) {
                 $controller = new $controllerClass();

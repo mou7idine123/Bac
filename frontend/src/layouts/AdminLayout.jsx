@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   BarChart2, Users, BookOpen, Layers, FileText,
-  HelpCircle, Copy, LogOut, Settings, Award, Cpu, ArrowUpRight, FileEdit
+  HelpCircle, Copy, LogOut, Settings, Cpu, ArrowUpRight, FileEdit
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -24,9 +24,7 @@ export default function AdminLayout() {
     { path: '/admin/courses', icon: FileText, label: 'Cours' },
     { path: '/admin/sheets', icon: Copy, label: 'Fiches Révision' },
     { path: '/admin/exams', icon: Layers, label: 'Annales (Examens)' },
-    { isDivider: true, label: 'Évaluation' },
     { path: '/admin/exercises', icon: HelpCircle, label: 'Exercices' },
-    { path: '/admin/quizzes', icon: Award, label: 'QCM' },
     { isDivider: true, label: 'Configuration' },
     { path: '/admin/settings', icon: Settings, label: 'Paramètres' },
     { path: '/admin/series', icon: Layers, label: 'Séries' },

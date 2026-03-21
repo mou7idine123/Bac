@@ -101,50 +101,6 @@ CREATE TABLE IF NOT EXISTS revision_sheets (
     FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
 
--- Quiz (Évaluations)
-CREATE TABLE IF NOT EXISTS quizzes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    subject_id INT NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    series JSON NULL,
-    difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium',
-    time_limit_minutes INT DEFAULT 15,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
-);
-
--- Questions de Quiz
-CREATE TABLE IF NOT EXISTS questions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    quiz_id INT NOT NULL,
-    question_text TEXT NOT NULL,
-    explanation TEXT NULL,
-    points INT DEFAULT 1,
-    FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE
-);
-
--- Réponses aux Questions (QCM)
-CREATE TABLE IF NOT EXISTS answers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    question_id INT NOT NULL,
-    answer_text TEXT NOT NULL,
-    is_correct BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
-);
-
--- Tentatives de Quiz
-CREATE TABLE IF NOT EXISTS quiz_attempts (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    quiz_id INT NOT NULL,
-    score INT NOT NULL,
-    total_points INT NOT NULL,
-    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE
-);
-
 -- Planning d'étude personnalisé
 CREATE TABLE IF NOT EXISTS study_plans (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -235,6 +191,10 @@ CREATE TABLE IF NOT EXISTS exercises (
     type VARCHAR(50) NULL,
     difficulty ENUM('easy', 'medium', 'hard', 'bac') DEFAULT 'medium',
     pdf_path VARCHAR(255) NULL,
+    creator_id INT NULL,
+    is_public BOOLEAN DEFAULT FALSE,
+    statement_content LONGTEXT NULL,
+    correction_content LONGTEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
@@ -251,17 +211,6 @@ CREATE TABLE IF NOT EXISTS exercise_progress (
     FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
 );
 
--- Progression des Quiz
-CREATE TABLE IF NOT EXISTS quiz_progress (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    quiz_id INT NOT NULL,
-    status ENUM('not_started', 'in_progress', 'completed') DEFAULT 'not_started',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY user_quiz_unique (user_id, quiz_id),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE
-);
 
 -- Progression des Annales (Exams)
 CREATE TABLE IF NOT EXISTS exam_progress (

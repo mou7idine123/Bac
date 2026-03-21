@@ -545,6 +545,7 @@ class AdminController {
             $subjId    = trim((string)($input['subject_id'] ?? ''));
             $title     = trim((string)($input['title'] ?? ''));
             $content   = trim((string)($input['summary_content'] ?? ''));
+            $seriesRaw = (string)($input['series'] ?? '');
 
             if ($subjId === '' || $title === '') {
                 $this->jsonResponse(['error' => 'Matière et Titre requis'], 400);
@@ -584,8 +585,9 @@ class AdminController {
             }
 
             try {
-                $stmt = $this->db->prepare("INSERT INTO revision_sheets (subject_id, title, summary_content, pdf_url) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$subjId, $title, $content, $pdfUrl]);
+                $seriesJson = json_encode([$seriesRaw]);
+                $stmt = $this->db->prepare("INSERT INTO revision_sheets (subject_id, series, title, summary_content, pdf_url) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$subjId, $seriesJson, $title, $content, $pdfUrl]);
                 $this->jsonResponse(['success' => true, 'message' => 'Fiche ajoutée avec succès']);
             } catch (\Exception $e) {
                 $this->jsonResponse(['error' => 'Erreur: ' . $e->getMessage()], 500);
@@ -642,9 +644,10 @@ class AdminController {
         $isMultipart = strpos($_SERVER['CONTENT_TYPE'] ?? '', 'multipart/form-data') !== false;
         $input = $isMultipart ? $_POST : (json_decode(file_get_contents('php://input'), true) ?? []);
         
-        $title   = $input['title'] ?? '';
-        $content = $input['summary_content'] ?? '';
-        $subjId  = $input['subject_id'] ?? '';
+        $title     = $input['title'] ?? '';
+        $content   = $input['summary_content'] ?? '';
+        $subjId    = $input['subject_id'] ?? '';
+        $seriesRaw = (string)($input['series'] ?? '');
 
         if (empty($title) || empty($subjId)) {
             $this->jsonResponse(['error' => 'Titre et Matière requis'], 400);
@@ -680,8 +683,9 @@ class AdminController {
         }
 
         try {
-            $stmt = $this->db->prepare("UPDATE revision_sheets SET subject_id=?, title=?, summary_content=?, pdf_url=? WHERE id=?");
-            $stmt->execute([$subjId, $title, $content, $pdfUrl, $id]);
+            $seriesJson = json_encode([$seriesRaw]);
+            $stmt = $this->db->prepare("UPDATE revision_sheets SET subject_id=?, series=?, title=?, summary_content=?, pdf_url=? WHERE id=?");
+            $stmt->execute([$subjId, $seriesJson, $title, $content, $pdfUrl, $id]);
             $this->jsonResponse(['success' => true, 'message' => 'Fiche mise à jour.']);
         } catch (\Exception $e) {
             $this->jsonResponse(['error' => $e->getMessage()], 500);

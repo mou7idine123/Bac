@@ -156,6 +156,8 @@ export default function AdminSheets() {
                 payload.append('title', formData.title);
                 payload.append('summary_content', '');
                 payload.append('subject_id', isEdit ? editingSheet.subject_id : selectedSubject);
+                const currentSeries = isEdit ? (typeof editingSheet.series === 'string' ? JSON.parse(editingSheet.series)[0] : (Array.isArray(editingSheet.series) ? editingSheet.series[0] : selectedSeries)) : selectedSeries;
+                payload.append('series', currentSeries);
                 payload.append('pdf', pdfFile);
                 if (isEdit) {
                     payload.append('existing_pdf', existingPdf || '');
@@ -167,10 +169,12 @@ export default function AdminSheets() {
                     body: payload,
                 });
             } else {
+                const currentSeries = isEdit ? (typeof editingSheet.series === 'string' ? JSON.parse(editingSheet.series)[0] : (Array.isArray(editingSheet.series) ? editingSheet.series[0] : selectedSeries)) : selectedSeries;
                 const body = {
                     title: formData.title,
                     summary_content: pdfSource === 'html' ? htmlContent : '',
                     subject_id: isEdit ? editingSheet.subject_id : selectedSubject,
+                    series: currentSeries,
                     ...(isEdit ? { existing_pdf: existingPdf || '', _method: 'PUT' } : {}),
                 };
                 res = await fetch(url, {

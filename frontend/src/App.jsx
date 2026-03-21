@@ -6,7 +6,6 @@ import Layout from './components/Layout';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import Courses from './pages/Courses';
-import Quizzes from './pages/Quizzes';
 import Exercises from './pages/Exercises';
 import Sheets from './pages/Sheets';
 import Assistant from './pages/Assistant';
@@ -25,7 +24,6 @@ import AdminResumes from './pages/admin/AdminResumes';
 import AdminCourses from './pages/admin/AdminCourses';
 import AdminSheets from './pages/admin/AdminSheets';
 import AdminExercises from './pages/admin/AdminExercises';
-import AdminQuizzes from './pages/admin/AdminQuizzes';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminExams from './pages/admin/AdminExams';
 import AdminUsers from './pages/admin/AdminUsers';
@@ -51,7 +49,6 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="courses" element={<Courses />} />
             <Route path="courses/lesson/:lessonId" element={<LessonView />} />
-            <Route path="quizzes" element={<Quizzes />} />
             <Route path="exercises" element={<Exercises />} />
             <Route path="sheets" element={<Sheets />} />
             <Route path="assistant" element={<Assistant />} />
@@ -72,7 +69,6 @@ function App() {
             <Route path="courses" element={<AdminCourses />} />
             <Route path="sheets" element={<AdminSheets />} />
             <Route path="exercises" element={<AdminExercises />} />
-            <Route path="quizzes" element={<AdminQuizzes />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="exams" element={<AdminExams />} />
             <Route path="series" element={<AdminSeries />} />
