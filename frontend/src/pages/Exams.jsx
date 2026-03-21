@@ -4,8 +4,6 @@ import { API_BASE_URL } from '../apiConfig';
 import { useAuth } from '../context/AuthContext';
 import FileViewer from '../components/FileViewer';
 
-const BACKEND_URL = 'http://localhost:8000';
-
 const subjectMeta = {
   'Mathématiques': { emoji: '📘', gradient: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#667eea', bg: 'rgba(102,126,234,0.1)' },
   'Physique': { emoji: '⚛️', gradient: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#f5576c', bg: 'rgba(245,87,108,0.1)' },
@@ -20,33 +18,64 @@ export default function Exams() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [filterYear, setFilterYear] = useState('Tous');
-  const [filterSeries, setFilterSeries] = useState(user?.series || 'C');
+  const [filterSeries, setFilterSeries] = useState(user?.series || 1);
   const [filterSubject, setFilterSubject] = useState('Tous');
   const [filterSession, setFilterSession] = useState('Tous');
   const [viewerPdf, setViewerPdf] = useState(null);
 
-  const series = ['C', 'D'];
+  const [series, setSeries] = useState([]);
   const [availableYears, setAvailableYears] = useState(['Tous']);
   const [availableSubjects, setAvailableSubjects] = useState(['Tous']);
 
   useEffect(() => {
-    fetchExams();
+    fetchMetadata();
+  }, []);
+
+  useEffect(() => {
+    if (filterSeries) {
+      fetchExams();
+    }
   }, [filterSeries]);
+
+  const fetchMetadata = async () => {
+    try {
+      const headers = { 'Authorization': `Bearer ${localStorage.getItem('bac_token')}` };
+
+      const [resSeries, resSubjects] = await Promise.all([
+        fetch(`${API_BASE_URL}/exams/series`, { headers }),
+        fetch(`${API_BASE_URL}/exams/subjects`, { headers })
+      ]);
+
+      const dataSeries = await resSeries.json();
+      const dataSubjects = await resSubjects.json();
+
+      if (dataSeries.success) {
+        setSeries(dataSeries.series);
+        // If user series isn't in the list (e.g. if we have only C and D but user is T), default to the first one
+        if (dataSeries.series.length > 0 && !dataSeries.series.find(s => s.id === filterSeries)) {
+          setFilterSeries(dataSeries.series[0].id);
+        }
+      }
+      if (dataSubjects.success) {
+        setAvailableSubjects(['Tous', ...dataSubjects.subjects.map(s => s.name)]);
+      }
+    } catch (err) {
+      console.error("Erreur métadonnées", err);
+    }
+  };
 
   const fetchExams = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/exams/list?series=${filterSeries}`, {
+      const res = await fetch(`${API_BASE_URL}/exams/list?series_id=${filterSeries}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('bac_token')}` }
       });
       const data = await res.json();
       if (data.success) {
         setExams(data.exams);
-        // Extract unique years and subjects
         const years = ['Tous', ...new Set(data.exams.map(e => e.year.toString()))].sort((a, b) => b - a);
-        const subjectsList = ['Tous', ...new Set(data.exams.map(e => e.subject))].sort();
         setAvailableYears(years);
-        setAvailableSubjects(subjectsList);
       } else {
         setError(data.error);
       }
@@ -113,12 +142,12 @@ export default function Exams() {
         <div style={{ display: 'flex', background: 'var(--bg-glass)', padding: '0.2rem', borderRadius: 'var(--r-md)', border: '1px solid var(--border-soft)' }}>
           {series.map(s => (
             <button
-              key={s}
-              onClick={() => { setFilterSeries(s); setFilterYear('Tous'); }}
-              className={`btn ${filterSeries === s ? 'btn-primary' : 'btn-glass'} btn-sm`}
-              style={{ minWidth: 80, border: 'none', background: filterSeries === s ? '' : 'transparent' }}
+              key={s.id}
+              onClick={() => { setFilterSeries(s.id); setFilterYear('Tous'); }}
+              className={`btn ${filterSeries === s.id ? 'btn-primary' : 'btn-glass'} btn-sm`}
+              style={{ minWidth: 80, border: 'none', background: filterSeries === s.id ? '' : 'transparent' }}
             >
-              Série {s}
+              Série {s.name}
             </button>
           ))}
         </div>
@@ -187,7 +216,7 @@ export default function Exams() {
                       <div>
                         <div style={{ fontWeight: 800, fontSize: '0.9rem', lineHeight: 1.2 }}>{item.subject}</div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                          Bac {item.year} · Série {item.series}
+                          Bac {item.year}
                         </div>
                       </div>
                     </div>

@@ -23,7 +23,7 @@ class Router {
             // Convert pdf-to-html -> convertPdfToHtml (camelCase)
             $rawAction = $parts[2];
             $action = lcfirst(str_replace(' ', '', ucwords(str_replace('-', ' ', $rawAction))));
-            $controllerClass = "App\\Controllers\\AiController";
+            $controllerClass = "App\\Controllers\\AIController";
             $args = array_slice($parts, 3);
 
             if (class_exists($controllerClass)) {

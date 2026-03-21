@@ -769,6 +769,7 @@ class AdminController {
             $subjId    = trim((string)($input['subject_id'] ?? ''));
             $series    = $input['series'] ?? [];
             if (!is_array($series)) $series = [$series];
+            $series    = array_map('intval', $series);
             $year      = (int)($input['year'] ?? date('Y'));
             $session   = trim((string)($input['session'] ?? 'normale'));
             $solution  = trim((string)($input['solution_content'] ?? ''));
@@ -889,6 +890,7 @@ class AdminController {
             $title     = trim((string)($input['title'] ?? ''));
             $series    = $input['series'] ?? [];
             if (!is_array($series)) $series = [$series];
+            $series    = array_map('intval', $series);
             $type      = trim((string)($input['type'] ?? 'Classique'));
             $difficulty= trim((string)($input['difficulty'] ?? 'medium'));
             $description= trim((string)($input['description'] ?? ''));
@@ -996,6 +998,7 @@ class AdminController {
             $difficulty  = trim((string)($input['difficulty'] ?? 'medium'));
             $series      = $input['series'] ?? [];
             if (!is_array($series)) $series = [$series];
+            $series      = array_map('intval', $series);
             $timeLimit   = (int)($input['time_limit_minutes'] ?? 20);
             $questions   = $input['questions'] ?? [];
 

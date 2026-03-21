@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 import { API_BASE_URL } from '../../apiConfig';
 
-const BACKEND_URL = 'http://localhost:8000';
+// Replaced hardcoded BACKEND_URL with API_BASE_URL
+const MEDIA_URL = API_BASE_URL;
 const EMPTY_FORM = {
     id: null,
     subject_id: '',
@@ -29,6 +30,7 @@ export default function AdminExams() {
     const [view, setView] = useState('list');
     const [formData, setFormData] = useState(EMPTY_FORM);
     const [subjects, setSubjects] = useState([]);
+    const [subjectsLoading, setSubjectsLoading] = useState(false);
     const [formLoading, setFormLoading] = useState(false);
     const [formError, setFormError] = useState(null);
 
@@ -36,6 +38,7 @@ export default function AdminExams() {
     const [pdfStatement, setPdfStatement] = useState(null);
     const [pdfCorrection, setPdfCorrection] = useState(null);
     const [existingStatement, setExistingStatement] = useState(null);
+    const [existingCorrection, setExistingCorrection] = useState(null);
     // ── Fetch all ──────────────────────────────────────────────────
     useEffect(() => {
         fetchInitialData();
@@ -408,8 +411,8 @@ export default function AdminExams() {
                                     </td>
                                     <td style={{ padding: '1rem 1.5rem' }}>
                                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <a href={`${BACKEND_URL}${ex.pdf_statement_url}`} target="_blank" rel="noreferrer" style={{ padding: '0.2rem 0.5rem', background: '#e0e7ff', color: '#4f46e5', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, textDecoration: 'none' }}>Énoncé</a>
-                                            {ex.pdf_correction_url && <a href={`${BACKEND_URL}${ex.pdf_correction_url}`} target="_blank" rel="noreferrer" style={{ padding: '0.2rem 0.5rem', background: '#dcfce7', color: '#166534', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, textDecoration: 'none' }}>Corrigé</a>}
+                                            <a href={`${MEDIA_URL}${ex.pdf_statement_url}`} target="_blank" rel="noreferrer" style={{ padding: '0.2rem 0.5rem', background: '#e0e7ff', color: '#4f46e5', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, textDecoration: 'none' }}>Énoncé</a>
+                                            {ex.pdf_correction_url && <a href={`${MEDIA_URL}${ex.pdf_correction_url}`} target="_blank" rel="noreferrer" style={{ padding: '0.2rem 0.5rem', background: '#dcfce7', color: '#166534', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, textDecoration: 'none' }}>Corrigé</a>}
                                         </div>
                                     </td>
                                     <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>

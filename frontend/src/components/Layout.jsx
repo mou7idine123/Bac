@@ -119,7 +119,7 @@ export default function Layout() {
         </header>
 
         {/* Page content */}
-        <main className="page-content anim-fade-up">
+        <main className={`page-content anim-fade-up ${location.pathname === '/assistant' ? 'page-content--full' : ''}`}>
           <Outlet />
         </main>
       </div>
