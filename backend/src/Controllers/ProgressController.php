@@ -84,6 +84,20 @@ class ProgressController {
 
         $filteredStats = array_filter($subjectStats, fn($s) => $s['exercises_done'] > 0 || $s['exams_done'] > 0);
         
+        // 3. Prochaines séances d'étude (Recommandations)
+        $stmt = $this->db->prepare("
+            SELECT ss.*, s.name as subject_name, c.title as chapter_title
+            FROM study_sessions ss
+            JOIN study_plans sp ON ss.study_plan_id = sp.id
+            JOIN subjects s ON ss.subject_id = s.id
+            LEFT JOIN chapters c ON ss.chapter_id = c.id
+            WHERE sp.user_id = ? AND ss.is_completed = FALSE
+            ORDER BY ss.scheduled_date ASC
+            LIMIT 3
+        ");
+        $stmt->execute([$this->userId]);
+        $upcomingSessions = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
         $this->jsonResponse([
             'exercise_stats' => [
                 'total' => (int)$exTotal,
@@ -93,7 +107,9 @@ class ProgressController {
                 'total' => (int)$examTotal,
                 'completed' => (int)$examCompleted
             ],
-            'subject_stats' => array_values($filteredStats)
+            'subject_stats' => array_values($filteredStats),
+            'study_sessions' => $upcomingSessions,
+            'subjects' => $subjects
         ]);
     }
 

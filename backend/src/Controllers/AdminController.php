@@ -37,17 +37,20 @@ class AdminController {
         try {
             $totalUsers = $this->db->query("SELECT COUNT(*) FROM users")->fetchColumn();
 
-            $stmt = $this->db->query("SELECT series, COUNT(*) as count FROM users GROUP BY series");
-            $usersBySeries = ['C' => 0, 'D' => 0];
+            // Total users by series (dynamic)
+            $stmt = $this->db->query("
+                SELECT s.name, COUNT(u.id) as count 
+                FROM series s 
+                LEFT JOIN users u ON s.id = u.series 
+                GROUP BY s.id
+            ");
+            $usersBySeries = [];
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                if (isset($row['series']) && isset($usersBySeries[$row['series']])) {
-                    $usersBySeries[$row['series']] = $row['count'];
-                }
+                $usersBySeries[$row['name']] = (int)$row['count'];
             }
 
             $totalCourses   = $this->db->query("SELECT COUNT(*) FROM lessons")->fetchColumn();
-            $totalQuizzes   = $this->db->query("SELECT COUNT(*) FROM quizzes")->fetchColumn();
-            $totalExercises = $this->db->query("SELECT COUNT(*) FROM questions")->fetchColumn();
+            $totalExercises = $this->db->query("SELECT COUNT(*) FROM exercises")->fetchColumn();
             $totalAnnales   = $this->db->query("SELECT COUNT(*) FROM exams")->fetchColumn();
 
             // Activité récente : les 5 derniers inscrits
@@ -71,7 +74,6 @@ class AdminController {
                 'metrics' => [
                     'total_users'    => (int) $totalUsers,
                     'total_courses'  => (int) $totalCourses,
-                    'total_quizzes'  => (int) $totalQuizzes,
                     'total_exercises'=> (int) $totalExercises,
                     'total_annales'  => (int) $totalAnnales,
                     'users_by_series'=> $usersBySeries,
@@ -933,138 +935,6 @@ class AdminController {
                 $stmt = $this->db->prepare("DELETE FROM exercises WHERE id = ?");
                 $stmt->execute([$id]);
                 $this->jsonResponse(['success' => true, 'message' => 'Exercice supprimé']);
-            } catch (\Exception $e) {
-                $this->jsonResponse(['error' => 'Erreur: ' . $e->getMessage()], 500);
-            }
-        }
-    }
-
-    // GET, POST, DELETE /admin/quizzes
-    public function quizzes($id = null) {
-        $this->requireAdmin();
-        $method = $_SERVER['REQUEST_METHOD'];
-        $actualMethod = $method;
-
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
-        $input = $_POST;
-        if (stripos($contentType, 'application/json') !== false) {
-            $jsonBody = json_decode(file_get_contents('php://input'), true);
-            if (is_array($jsonBody)) $input = array_merge($input, $jsonBody);
-        }
-
-        if ($method === 'POST' && isset($input['_method'])) {
-            $actualMethod = strtoupper($input['_method']);
-        }
-
-        $id = $id ?? ($_GET['id'] ?? null);
-
-        if ($actualMethod === 'GET') {
-            if ($id) {
-                // Get single quiz with questions and answers
-                $stmt = $this->db->prepare("SELECT * FROM quizzes WHERE id = ?");
-                $stmt->execute([$id]);
-                $quiz = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$quiz) $this->jsonResponse(['error' => 'Quiz introuvable'], 404);
-
-                $stmtQ = $this->db->prepare("SELECT * FROM questions WHERE quiz_id = ?");
-                $stmtQ->execute([$id]);
-                $questions = $stmtQ->fetchAll(PDO::FETCH_ASSOC);
-
-                foreach ($questions as &$q) {
-                    $stmtA = $this->db->prepare("SELECT * FROM answers WHERE question_id = ?");
-                    $stmtA->execute([$q['id']]);
-                    $q['answers'] = $stmtA->fetchAll(PDO::FETCH_ASSOC);
-                }
-
-                $quiz['questions'] = $questions;
-                $this->jsonResponse(['success' => true, 'quiz' => $quiz]);
-            } else {
-                $series = $_GET['series'] ?? 'C';
-                $stmt = $this->db->prepare("
-                    SELECT q.*, s.name as subject, 
-                           (SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) as questions_count
-                    FROM quizzes q
-                    JOIN subjects s ON q.subject_id = s.id
-                    WHERE JSON_CONTAINS(q.series, :series)
-                    GROUP BY q.id
-                    ORDER BY q.id DESC
-                ");
-                $stmt->execute(['series' => (int)$series]);
-                $quizzes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                $this->jsonResponse(['success' => true, 'quizzes' => $quizzes]);
-            }
-        } 
-        else if ($actualMethod === 'POST') {
-            $quizId      = $input['id'] ?? null;
-            $subjId      = trim((string)($input['subject_id'] ?? ''));
-            $title       = trim((string)($input['title'] ?? ''));
-            $difficulty  = trim((string)($input['difficulty'] ?? 'medium'));
-            $series      = $input['series'] ?? [];
-            if (!is_array($series)) $series = [$series];
-            $series      = array_map('intval', $series);
-            $timeLimit   = (int)($input['time_limit_minutes'] ?? 20);
-            $questions   = $input['questions'] ?? [];
-
-            if ($subjId === '' || $title === '') {
-                $this->jsonResponse(['error' => 'Matière et Titre requis'], 400);
-            }
-
-            try {
-                $this->db->beginTransaction();
-
-                if ($quizId) {
-                    $stmt = $this->db->prepare("UPDATE quizzes SET subject_id=?, title=?, series=?, difficulty=?, time_limit_minutes=? WHERE id=?");
-                    $stmt->execute([$subjId, $title, json_encode($series), $difficulty, $timeLimit, $quizId]);
-                    
-                    // Clear old questions/answers for simple update logic
-                    $qstmt = $this->db->prepare("SELECT id FROM questions WHERE quiz_id = ?");
-                    $qstmt->execute([$quizId]);
-                    $qids = $qstmt->fetchAll(PDO::FETCH_COLUMN);
-                    if ($qids) {
-                        $placeholders = implode(',', array_fill(0, count($qids), '?'));
-                        $this->db->prepare("DELETE FROM answers WHERE question_id IN ($placeholders)")->execute($qids);
-                        $this->db->prepare("DELETE FROM questions WHERE quiz_id = ?")->execute([$quizId]);
-                    }
-                } else {
-                    $stmt = $this->db->prepare("INSERT INTO quizzes (subject_id, title, series, difficulty, time_limit_minutes) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute([$subjId, $title, json_encode($series), $difficulty, $timeLimit]);
-                    $quizId = $this->db->lastInsertId();
-                }
-
-                // Insert Questions & Answers
-                foreach ($questions as $q) {
-                    $qText = trim($q['question_text'] ?? '');
-                    $qExpl = trim($q['explanation'] ?? '');
-                    if ($qText === '') continue;
-
-                    $stmtQ = $this->db->prepare("INSERT INTO questions (quiz_id, question_text, explanation) VALUES (?, ?, ?)");
-                    $stmtQ->execute([$quizId, $qText, $qExpl]);
-                    $questionId = $this->db->lastInsertId();
-
-                    $answers = $q['answers'] ?? [];
-                    foreach ($answers as $a) {
-                        $aText = trim($a['answer_text'] ?? '');
-                        if ($aText === '') continue;
-                        $isCorrect = (int)($a['is_correct'] ?? 0);
-
-                        $stmtA = $this->db->prepare("INSERT INTO answers (question_id, answer_text, is_correct) VALUES (?, ?, ?)");
-                        $stmtA->execute([$questionId, $aText, $isCorrect]);
-                    }
-                }
-
-                $this->db->commit();
-                $this->jsonResponse(['success' => true, 'message' => 'Quiz enregistré avec succès']);
-            } catch (\Exception $e) {
-                $this->db->rollBack();
-                $this->jsonResponse(['error' => 'Erreur: ' . $e->getMessage()], 500);
-            }
-        }
-        else if ($actualMethod === 'DELETE' && $id) {
-            try {
-                $stmt = $this->db->prepare("DELETE FROM quizzes WHERE id = ?");
-                $stmt->execute([$id]);
-                $this->jsonResponse(['success' => true, 'message' => 'Quiz supprimé']);
             } catch (\Exception $e) {
                 $this->jsonResponse(['error' => 'Erreur: ' . $e->getMessage()], 500);
             }

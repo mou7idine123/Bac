@@ -34,7 +34,6 @@ export function AuthProvider({ children }) {
       .then(r => r.json())
       .then(data => {
         if (data.user) {
-          if (data.user.role === 'admin') data.user.series = 'C';
           setUser(data.user);
           // Trigger streak check-in if student
           if (data.user.role === 'student') {
@@ -84,7 +83,6 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Identifiants invalides');
-    if (data.user?.role === 'admin') data.user.series = 'C';
     saveToken(data.token);
     setUser(data.user);
     return data.user;

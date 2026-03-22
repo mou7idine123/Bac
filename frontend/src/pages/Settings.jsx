@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User, Mail, Shield, Save, CheckCircle, AlertCircle, Trash2, Smartphone } from 'lucide-react';
+import { API_BASE_URL } from '../apiConfig';
 
 export default function Settings() {
     const { user, updateProfile } = useAuth();
@@ -37,7 +38,9 @@ export default function Settings() {
             if (data.success) {
                 setSeriesList(data.series);
             }
-        } catch { }
+        } catch (err) {
+            console.error('Error fetching series in settings:', err);
+        }
     };
 
     const handleChange = (e) => {

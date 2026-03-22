@@ -133,6 +133,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
     exercise_stats: { total: 0, completed: 0 },
     exam_stats: { total: 0, completed: 0 },
+    study_sessions: [],
   });
   const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -146,12 +147,13 @@ export default function Dashboard() {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('bac_token');
-      const res = await fetch(`${API_BASE_URL}/progress/dashboard`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const statsRes = await fetch(`${API_BASE_URL}/progress/dashboard`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      const result = await res.json();
-      if (result.exercise_stats) {
-        setStats(result);
+      const statsJson = await statsRes.json();
+      setStats(statsJson);
+      if (statsJson.subjects) {
+        setData(prev => ({ ...prev, subjects: statsJson.subjects }));
       }
     } catch (err) { }
     finally { setLoading(false); }
@@ -202,7 +204,43 @@ export default function Dashboard() {
   const urgencyConfig = {
     high: { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)', label: 'Urgent' },
     medium: { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)', label: 'À réviser' },
-    low: { color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)', label: 'Bien' },
+    low: { color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)', label: 'Prévu' },
+  };
+
+  const getUrgency = (dateStr) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+    if (diff <= 0) return 'high';
+    if (diff <= 2) return 'medium';
+    return 'low';
+  };
+
+  const getSubjectIcon = (name) => {
+    const map = {
+      'Mathématiques': '📐',
+      'Physique-Chimie': '⚡',
+      'Sciences Naturelles': '🧬',
+      'Informatique': '💻',
+      'Anglais': '🇬🇧',
+      'Français': '🇫🇷',
+      'Philosophie': '⚖️',
+    };
+    return map[name] || '📚';
+  };
+  const getSubjectAesthetics = (name) => {
+    const config = {
+      'Mathématiques': { icon: '📐', color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
+      'Physique-Chimie': { icon: '⚡', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+      'Sciences Naturelles': { icon: '🧬', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+      'Informatique': { icon: '💻', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+      'Anglais': { icon: '🇬🇧', color: '#ec4899', bg: 'rgba(236,72,153,0.1)' },
+      'Français': { icon: '🇫🇷', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+      'Philosophie': { icon: '⚖️', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
+      'Histoire-Géo': { icon: '🌍', color: '#eab308', bg: 'rgba(234,179,8,0.1)' },
+    };
+    return config[name] || { icon: '📚', color: '#4f46e5', bg: 'rgba(79,70,229,0.1)' };
   };
 
   return (
@@ -372,41 +410,54 @@ export default function Dashboard() {
               padding: '0.25rem 0.65rem', borderRadius: 99,
               fontSize: '0.7rem', fontWeight: 800,
             }}>
-              {TO_REVIEW.length} matières
+              {stats.study_sessions.length} séances
             </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            {TO_REVIEW.map((item, i) => {
-              const u = urgencyConfig[item.urgency];
-              return (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'center', gap: '0.85rem',
-                  padding: '0.85rem 1rem', borderRadius: 14,
-                  background: u.bg, border: `1px solid ${u.border}`,
-                  cursor: 'pointer', transition: 'all 0.2s',
-                }}
-                  onMouseOver={e => e.currentTarget.style.transform = 'translateX(4px)'}
-                  onMouseOut={e => e.currentTarget.style.transform = 'none'}
-                >
-                  <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {item.subject}
+            {stats.study_sessions.length === 0 ? (
+              <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                Aucune séance prévue. C'est le moment de planifier !
+              </div>
+            ) : (
+              stats.study_sessions.map((item, i) => {
+                const urgency = getUrgency(item.scheduled_date);
+                const u = urgencyConfig[urgency];
+                const icon = getSubjectIcon(item.subject_name);
+                const dateLabel = new Date(item.scheduled_date).toLocaleDateString('fr-FR', {
+                  day: 'numeric', month: 'short'
+                });
+
+                return (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: '0.85rem',
+                    padding: '0.85rem 1rem', borderRadius: 14,
+                    background: u.bg, border: `1px solid ${u.border}`,
+                    cursor: 'pointer', transition: 'all 0.2s',
+                  }}
+                    onMouseOver={e => e.currentTarget.style.transform = 'translateX(4px)'}
+                    onMouseOut={e => e.currentTarget.style.transform = 'none'}
+                    onClick={() => window.location.href = '/planning'}
+                  >
+                    <span style={{ fontSize: '1.25rem' }}>{icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.chapter_title || item.subject_name}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                        {item.subject_name} · {item.duration_minutes} min · {dateLabel}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                      {item.reason}
-                    </div>
+                    <span style={{
+                      fontSize: '0.65rem', fontWeight: 800, padding: '0.2rem 0.55rem',
+                      borderRadius: 99, background: u.color + '20', color: u.color,
+                    }}>
+                      {u.label}
+                    </span>
                   </div>
-                  <span style={{
-                    fontSize: '0.65rem', fontWeight: 800, padding: '0.2rem 0.55rem',
-                    borderRadius: 99, background: u.color + '20', color: u.color,
-                  }}>
-                    {u.label}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
           <Link to="/courses" style={{
@@ -426,96 +477,6 @@ export default function Dashboard() {
 
       {/* ── SECOND GRID: AI + Résumés + Planning ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-
-        {/* Assistant IA — Bloc intelligent */}
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(161,140,209,0.12) 0%, rgba(251,194,235,0.1) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(161,140,209,0.25)',
-          borderRadius: 20,
-          padding: '1.5rem',
-          display: 'flex', flexDirection: 'column', gap: '1.1rem',
-          animation: 'fadeUp 0.5s ease 300ms both',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            <div style={{
-              width: 46, height: 46, borderRadius: 16,
-              background: 'linear-gradient(135deg, #a18cd1, #fbc2eb)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 6px 20px rgba(161,140,209,0.4)',
-            }}>
-              <Sparkles size={20} color="white" />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Assistant IA
-              </h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: 2 }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', animation: 'pulseGlow 2s infinite' }} />
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>En ligne · Répond instantanément</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={{
-            background: 'rgba(255,255,255,0.7)', borderRadius: 14,
-            padding: '0.85rem 1rem', fontSize: '0.88rem', color: 'var(--text-secondary)',
-            border: '1px solid rgba(255,255,255,0.6)', lineHeight: 1.5, fontStyle: 'italic',
-          }}>
-            "Comment puis-je t'aider aujourd'hui ? Explique, génère, planifie..."
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-            {AI_ACTIONS.map((action, i) => {
-              const Icon = action.icon;
-              return (
-                <Link
-                  key={i}
-                  to="/assistant"
-                  state={{ prompt: action.prompt }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    padding: '0.75rem 0.85rem', borderRadius: 12,
-                    background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.8)',
-                    color: 'var(--text-secondary)', fontSize: '0.78rem', fontWeight: 600,
-                    textDecoration: 'none', transition: 'all 0.2s',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                  }}
-                  onMouseOver={e => {
-                    e.currentTarget.style.background = `${action.color}10`;
-                    e.currentTarget.style.borderColor = `${action.color}30`;
-                    e.currentTarget.style.color = action.color;
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = `0 8px 20px ${action.color}20`;
-                  }}
-                  onMouseOut={e => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.7)';
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.8)';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                    e.currentTarget.style.transform = 'none';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
-                  }}
-                >
-                  <Icon size={15} color={action.color} />
-                  {action.label}
-                </Link>
-              );
-            })}
-          </div>
-
-          <Link to="/assistant" style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-            padding: '0.8rem', borderRadius: 14,
-            background: 'linear-gradient(135deg, #a18cd1, #fbc2eb)',
-            color: 'white', fontWeight: 700, fontSize: '0.88rem', textDecoration: 'none',
-            transition: 'all 0.2s', boxShadow: '0 4px 16px rgba(161,140,209,0.35)',
-          }}
-            onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(161,140,209,0.5)'; }}
-            onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(161,140,209,0.35)'; }}
-          >
-            <Sparkles size={15} /> Ouvrir l'assistant IA
-          </Link>
-        </div>
 
         {/* Résumés de Chapitres */}
         <div style={{
@@ -606,108 +567,6 @@ export default function Dashboard() {
               </div>
             </>
           )}
-        </div>
-
-        {/* Planning */}
-        <div style={{
-          background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(200,210,240,0.5)', borderRadius: 20,
-          padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem',
-          animation: 'fadeUp 0.5s ease 400ms both',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.2rem' }}>
-                Organisation
-              </div>
-              <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                <Calendar size={16} style={{ display: 'inline', marginRight: 6, color: '#f59e0b' }} />
-                Planning
-              </h3>
-            </div>
-            <Link to="/planning" style={{
-              fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b',
-              textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem',
-            }}>
-              Gérer <ChevronRight size={13} />
-            </Link>
-          </div>
-
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem',
-            padding: '1.5rem 1rem', textAlign: 'center',
-          }}>
-            <div style={{
-              width: 52, height: 52, borderRadius: 16,
-              background: 'rgba(245,158,11,0.1)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Calendar size={22} color="#f59e0b" />
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '0.25rem' }}>
-                Planifie ta semaine
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Crée un planning personnalisé avec l'IA pour optimiser tes révisions
-              </div>
-            </div>
-            <Link to="/planning" style={{
-              display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.65rem 1.25rem', borderRadius: 12,
-              background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
-              color: 'white', fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none',
-              boxShadow: '0 4px 14px rgba(245,158,11,0.3)', transition: 'all 0.2s',
-            }}
-              onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 22px rgba(245,158,11,0.4)'; }}
-              onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(245,158,11,0.3)'; }}
-            >
-              <Sparkles size={14} /> Générer mon planning
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* ── MATIÈRES BANNER ── */}
-      <div style={{ animation: 'fadeUp 0.5s ease 450ms both' }}>
-        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.2rem' }}>
-              Matières
-            </div>
-            <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              Accès rapide aux cours
-            </h3>
-          </div>
-          <Link to="/courses" style={{
-            display: 'flex', alignItems: 'center', gap: '0.3rem',
-            fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none',
-          }}>
-            Voir tout <ChevronRight size={14} />
-          </Link>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem' }}>
-          {data.subjects.map((sub, i) => (
-            <Link
-              key={i}
-              to="/courses"
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.85rem',
-                padding: '1rem 1.25rem', borderRadius: 16,
-                background: sub.bg, border: `1px solid ${sub.color}25`,
-                textDecoration: 'none', transition: 'all 0.25s',
-                animation: `fadeUp 0.5s ease ${500 + i * 80}ms both`,
-              }}
-              onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 12px 28px ${sub.color}20`; }}
-              onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
-            >
-              <span style={{ fontSize: '1.5rem' }}>{sub.icon}</span>
-              <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: sub.color }}>{sub.name}</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>Voir les cours →</div>
-              </div>
-            </Link>
-          ))}
         </div>
       </div>
 

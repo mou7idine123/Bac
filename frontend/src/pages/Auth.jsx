@@ -4,8 +4,10 @@ import {
   GraduationCap, Mail, Lock, Eye, EyeOff, User, ArrowRight,
   BookOpen, Brain, BarChart3, Shield, ChevronRight, Check,
   Users, TrendingUp, Award, AlertTriangle, FlaskConical, Ruler,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../apiConfig';
 
 /* ================================================================
    CONFIGURATION — toutes les données et labels sont ici.
@@ -148,7 +150,9 @@ export default function Auth() {
           setForm(f => ({ ...f, series: data.series[0].id }));
         }
       }
-    } catch { }
+    } catch (err) {
+      console.error('Error fetching series:', err);
+    }
   };
 
   if (user) return <Navigate to={user.role === 'admin' ? '/admin' : '/'} replace />;
@@ -374,33 +378,25 @@ export default function Auth() {
               <div className="auth-field">
                 <label className="auth-field-label">{fields.seriesLabel}</label>
                 <div className="auth-series-grid">
-                  {seriesList.map((s) => {
-                    const color = s.name === 'D' ? '#43e97b' : '#4f7af8';
-                    const sub = s.name === 'C' ? 'Mathématiques' : 'Sciences Naturelles';
-                    const SerieIcon = s.name === 'C' ? Ruler : FlaskConical;
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, series: s.id }))}
-                        className={`auth-series-btn${form.series === s.id ? ' auth-series-btn--active' : ''}`}
-                        style={{ '--sc': color, borderColor: form.series === s.id ? color : undefined }}
-                      >
-                        <SerieIcon
-                          size={icons.seriesSize}
-                          className="auth-series-icon"
-                          style={{ color: form.series === s.id ? color : undefined }}
-                        />
-                        <span className="auth-series-label">Série {s.name}</span>
-                        <span className="auth-series-sub">{sub}</span>
-                        {form.series === s.id && (
-                          <div className="auth-series-check">
-                            <Check size={icons.checkSize} />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
+                  {seriesList.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, series: s.id }))}
+                      className={`auth-series-btn${form.series === s.id ? ' auth-series-btn--active' : ''}`}
+                    >
+                      <GraduationCap
+                        size={icons.seriesSize}
+                        className="auth-series-icon"
+                      />
+                      <span className="auth-series-label">Série {s.name}</span>
+                      {form.series === s.id && (
+                        <div className="auth-series-check">
+                          <Check size={icons.checkSize} />
+                        </div>
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

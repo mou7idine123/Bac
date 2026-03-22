@@ -1847,14 +1847,17 @@ body::after {
 
 /* Series selector */
 .auth-series-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.7rem;
-  margin-top: 0.1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.2rem;
+  width: 100%;
 }
 
 .auth-series-btn {
   position: relative;
+  flex: 1 1 calc(50% - 0.4rem);
+  min-width: 120px;
   padding: 0.85rem 0.75rem;
   border-radius: 14px;
   border: 2px solid rgba(200, 210, 240, 0.6);
