@@ -4,7 +4,8 @@
 > Interface premium mobile-first avec IA intégrée, gamification et suivi de progression.
 
 ---
-
+COMPTE DEMO: mail: demo@prepbac.com
+password:demo123
 ## 🆕 Mises à jour récentes (Mars 2026)
 
 L'application a subi une refonte majeure pour garantir une expérience utilisateur de classe mondiale :
