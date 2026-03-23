@@ -2,12 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Users, Search, Trash2, ShieldCheck, ShieldOff, RefreshCw, Filter } from 'lucide-react';
 import { API_BASE_URL } from '../../apiConfig';
 
-const SERIES_OPTIONS = [
-    { value: '', label: 'Toutes les séries' },
-    { value: 'C', label: 'Série C' },
-    { value: 'D', label: 'Série D' },
-];
-
 const thStyle = {
     padding: '0.85rem 1.25rem',
     fontSize: '0.72rem', fontWeight: 700,
@@ -27,16 +21,38 @@ const tdStyle = {
 
 export default function AdminUsers() {
     const [users, setUsers] = useState([]);
+    const [seriesList, setSeriesList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
     const [seriesFilter, setSeriesFilter] = useState('');
     const [roleFilter, setRoleFilter] = useState('');
-    const [actionLoading, setActionLoading] = useState(null); // user id being acted on
+    const [actionLoading, setActionLoading] = useState(null);
+
+    useEffect(() => {
+        fetchInitialData();
+    }, []);
 
     useEffect(() => {
         fetchUsers();
     }, [seriesFilter]);
+
+    const fetchInitialData = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('bac_token');
+            const res = await fetch(`${API_BASE_URL}/admin/series`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                setSeriesList(data.series || []);
+            }
+        } catch (err) {
+            console.error("Failed to fetch series", err);
+        }
+        // fetchUsers will be called by the second useEffect since seriesFilter is initial empty
+    };
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -108,9 +124,13 @@ export default function AdminUsers() {
         return matchSearch && matchRole;
     });
 
-    const seriesC = users.filter(u => u.series === 'C').length;
-    const seriesD = users.filter(u => u.series === 'D').length;
     const admins = users.filter(u => u.role === 'admin').length;
+
+    // SERIES OPTIONS computed from fetched series
+    const seriesOptions = [
+        { value: '', label: 'Toutes les séries' },
+        ...seriesList.map(s => ({ value: String(s.id), label: `Série ${s.name}` }))
+    ];
 
     return (
         <div>
@@ -137,28 +157,54 @@ export default function AdminUsers() {
                 </button>
             </div>
 
-            {/* Stats cards */}
+            {/* Stats cards - DYNAMIC */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-                {[
-                    { label: 'Total', value: users.length, color: '#4f7af8', bg: 'rgba(79,122,248,0.08)' },
-                    { label: 'Série C', value: seriesC, color: '#a855f7', bg: 'rgba(168,85,247,0.08)' },
-                    { label: 'Série D', value: seriesD, color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
-                    { label: 'Admins', value: admins, color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
-                ].map(card => (
-                    <div key={card.label} style={{
-                        background: 'white', borderRadius: '12px', padding: '1.1rem 1.25rem',
-                        border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '1rem',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
-                    }}>
-                        <div style={{ width: 42, height: 42, borderRadius: 10, background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Users size={20} style={{ color: card.color }} />
-                        </div>
-                        <div>
-                            <div style={{ fontSize: '1.6rem', fontWeight: 900, color: card.color, lineHeight: 1 }}>{card.value}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>{card.label}</div>
-                        </div>
+                <div style={{
+                    background: 'white', borderRadius: '12px', padding: '1.1rem 1.25rem',
+                    border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '1rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
+                }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(79,122,248,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Users size={20} style={{ color: '#4f7af8' }} />
                     </div>
-                ))}
+                    <div>
+                        <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#4f7af8', lineHeight: 1 }}>{users.length}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Total</div>
+                    </div>
+                </div>
+
+                {seriesList.map(s => {
+                    const count = users.filter(u => u.series === s.name).length;
+                    return (
+                        <div key={s.id} style={{
+                            background: 'white', borderRadius: '12px', padding: '1.1rem 1.25rem',
+                            border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '1rem',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
+                        }}>
+                            <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(168,85,247,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Users size={20} style={{ color: '#a855f7' }} />
+                            </div>
+                            <div>
+                                <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#a855f7', lineHeight: 1 }}>{count}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Série {s.name}</div>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                <div style={{
+                    background: 'white', borderRadius: '12px', padding: '1.1rem 1.25rem',
+                    border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '1rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
+                }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(245,158,11,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Users size={20} style={{ color: '#f59e0b' }} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#f59e0b', lineHeight: 1 }}>{admins}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Admins</div>
+                    </div>
+                </div>
             </div>
 
             {/* Filters bar */}
@@ -191,7 +237,7 @@ export default function AdminUsers() {
                             onChange={e => setSeriesFilter(e.target.value)}
                             style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.85rem', outline: 'none', background: 'white', fontWeight: 600, color: '#334155' }}
                         >
-                            {SERIES_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            {seriesOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                     </div>
 
@@ -253,8 +299,8 @@ export default function AdminUsers() {
                                         <td style={tdStyle}>
                                             <span style={{
                                                 padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 700,
-                                                background: u.series === 'C' ? 'rgba(79,122,248,0.1)' : 'rgba(16,185,129,0.1)',
-                                                color: u.series === 'C' ? '#4f7af8' : '#10b981',
+                                                background: u.series === 'C' ? 'rgba(79,122,248,0.1)' : (u.series === 'D' ? 'rgba(16,185,129,0.1)' : 'rgba(168,85,247,0.1)'),
+                                                color: u.series === 'C' ? '#4f7af8' : (u.series === 'D' ? '#10b981' : '#a855f7'),
                                             }}>
                                                 Série {u.series ?? '?'}
                                             </span>

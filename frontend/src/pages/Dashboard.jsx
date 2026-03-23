@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   BookOpen, TrendingUp, CheckSquare, Calendar, ArrowRight,
   Sparkles, FlaskConical, Ruler, Play, Zap, Brain, GitBranch,
@@ -137,6 +137,7 @@ export default function Dashboard() {
   });
   const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
   const [heroPct, setHeroPct] = useState(0);
 
   useEffect(() => {
@@ -298,7 +299,7 @@ export default function Dashboard() {
           </p>
 
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
-            <Link to="/exercises" style={{
+            <Link to="/app/exercises" style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
               padding: '0.65rem 1.25rem', borderRadius: 12,
               background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)',
@@ -311,7 +312,7 @@ export default function Dashboard() {
             >
               <Play size={14} fill="white" /> Exercices
             </Link>
-            <Link to="/planning" style={{
+            <Link to="/app/planning" style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
               padding: '0.65rem 1.25rem', borderRadius: 12,
               background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
@@ -437,7 +438,7 @@ export default function Dashboard() {
                   }}
                     onMouseOver={e => e.currentTarget.style.transform = 'translateX(4px)'}
                     onMouseOut={e => e.currentTarget.style.transform = 'none'}
-                    onClick={() => window.location.href = '/planning'}
+                    onClick={() => navigate('/app/planning')}
                   >
                     <span style={{ fontSize: '1.25rem' }}>{icon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -460,7 +461,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          <Link to="/courses" style={{
+          <Link to="/app/courses" style={{
             display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
             padding: '0.65rem 1.1rem', borderRadius: 12, alignSelf: 'flex-start',
             background: 'var(--primary-soft)', color: 'var(--primary)',
@@ -495,7 +496,7 @@ export default function Dashboard() {
                 Résumés
               </h3>
             </div>
-            <Link to="/courses" style={{
+            <Link to="/app/courses" style={{
               fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)',
               textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem',
             }}>
@@ -523,7 +524,7 @@ export default function Dashboard() {
                   Les résumés de chapitres apparaîtront ici
                 </div>
               </div>
-              <Link to="/courses" style={{
+              <Link to="/app/courses" style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
                 padding: '0.6rem 1.1rem', borderRadius: 10,
                 background: 'var(--primary-soft)', color: 'var(--primary)',

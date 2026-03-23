@@ -20,7 +20,7 @@ const CONFIG = {
     badge: 'IA',
     tagline: 'Réussissez votre Baccalauréat avec l\'IA',
     taglineKey: 'Baccalauréat',           // mot mis en surbrillance
-    subline: 'La plateforme d\'excellence pour les élèves des séries C et D en Mauritanie.',
+    subline: 'La plateforme d\'excellence pour les élèves de toutes les séries en Mauritanie.',
     trustText: 'Données sécurisées · Accès immédiat · Sans engagement',
   },
 
@@ -84,7 +84,7 @@ const CONFIG = {
       gradient: 'linear-gradient(135deg,#4f7af8,#764ba2)',
       glow: 'rgba(79,122,248,0.3)',
       title: 'Cours Structurés',
-      desc: 'Tout le programme C & D, chapitre par chapitre',
+      desc: 'Tout le programme de votre série, chapitre par chapitre',
     },
     {
       icon: Brain,

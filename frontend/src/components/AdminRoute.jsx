@@ -16,7 +16,7 @@ export default function AdminRoute({ children }) {
 
   // Vérifie s'il est connecté ET s'il a le role 'admin'
   if (!user || user.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/app/dashboard" replace />;
   }
 
   return children;

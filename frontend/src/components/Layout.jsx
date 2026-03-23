@@ -39,7 +39,7 @@ function AvatarWithDropdown({ user, initials, logout, navigate, isMobile }) {
           </div>
           <div className="avatar-dropdown-body">
             {/* Using a generic /settings route or simply acting as a placeholder */}
-            <button className="avatar-dropdown-item" onClick={() => { setOpen(false); navigate('/settings'); }}>
+            <button className="avatar-dropdown-item" onClick={() => { setOpen(false); navigate('/app/settings'); }}>
               <Settings size={16} />
               Paramètres
             </button>

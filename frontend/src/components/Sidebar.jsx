@@ -18,9 +18,11 @@ const navItems = [
 ];
 
 // Badge couleur par série
-const seriesBadge = {
-  C: { label: 'Série C', bg: 'rgba(79,122,248,0.15)', color: '#4f7af8' },
-  D: { label: 'Série D', bg: 'rgba(67,233,123,0.15)', color: '#2ed573' },
+// Badge couleur par série
+const getSeriesBadge = (series, name) => {
+  if (series === 'C' || name === 'C') return { label: 'Série C', bg: 'rgba(79,122,248,0.15)', color: '#4f7af8' };
+  if (series === 'D' || name === 'D') return { label: 'Série D', bg: 'rgba(67,233,123,0.15)', color: '#2ed573' };
+  return { label: `Série ${name || series}`, bg: 'rgba(168,85,247,0.15)', color: '#a855f7' };
 };
 
 export default function Sidebar() {
@@ -38,7 +40,8 @@ export default function Sidebar() {
 
   const fullName = user ? `${user.first_name} ${user.last_name}` : 'Utilisateur';
   const series = user?.series ?? 'C';
-  const badge = seriesBadge[series] ?? seriesBadge.C;
+  const seriesName = user?.series_name || (series === '1' ? 'C' : (series === '2' ? 'D' : series));
+  const badge = getSeriesBadge(series, seriesName);
 
   return (
     <aside className="sidebar">

@@ -96,12 +96,19 @@ class AdminController {
             $series = $_GET['series'] ?? null;
             if ($series) {
                 $stmt = $this->db->prepare(
-                    "SELECT id, first_name, last_name, email, series, role, created_at FROM users WHERE series = ? ORDER BY created_at DESC"
+                    "SELECT u.id, u.first_name, u.last_name, u.email, s.name as series, u.role, u.created_at 
+                     FROM users u 
+                     LEFT JOIN series s ON u.series = s.id 
+                     WHERE u.series = ? 
+                     ORDER BY u.created_at DESC"
                 );
                 $stmt->execute([$series]);
             } else {
                 $stmt = $this->db->query(
-                    "SELECT id, first_name, last_name, email, series, role, created_at FROM users ORDER BY created_at DESC"
+                    "SELECT u.id, u.first_name, u.last_name, u.email, s.name as series, u.role, u.created_at 
+                     FROM users u 
+                     LEFT JOIN series s ON u.series = s.id 
+                     ORDER BY u.created_at DESC"
                 );
             }
             $this->jsonResponse(['success' => true, 'users' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);

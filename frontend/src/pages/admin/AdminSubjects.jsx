@@ -524,11 +524,26 @@ export default function AdminSubjects() {
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                     {chapters.map((chapter, idx) => (
                                         <div key={chapter.id} style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: idx === chapters.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
                                                 <div style={{ width: 28, height: 28, borderRadius: '6px', background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800 }}>
                                                     {chapters.length - idx}
                                                 </div>
-                                                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>{chapter.title}</span>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+                                                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>{chapter.title}</span>
+                                                    {(() => {
+                                                        try {
+                                                            const ids = typeof chapter.series === 'string' ? JSON.parse(chapter.series || '[]') : (chapter.series || []);
+                                                            return ids.map(sid => {
+                                                                const s = seriesList.find(sl => sl.id === parseInt(sid));
+                                                                return s ? (
+                                                                    <span key={sid} style={{ fontSize: '0.65rem', fontWeight: 700, px: '0.4rem', py: '0.1rem', background: '#f1f5f9', color: '#64748b', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                                                        {s.name}
+                                                                    </span>
+                                                                ) : null;
+                                                            });
+                                                        } catch (e) { return null; }
+                                                    })()}
+                                                </div>
                                             </div>
                                             <button
                                                 onClick={() => handleDeleteChapter(chapter.id)}

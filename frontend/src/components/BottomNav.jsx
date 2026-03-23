@@ -3,11 +3,11 @@ import { NavLink } from 'react-router-dom';
 import { Home, BookOpen, CheckSquare, Calendar, Sparkles } from 'lucide-react';
 
 const navItems = [
-  { to: '/', icon: Home, label: 'Accueil' },
-  { to: '/courses', icon: BookOpen, label: 'Cours' },
-  { to: '/quizzes', icon: CheckSquare, label: 'Quiz' },
-  { to: '/planning', icon: Calendar, label: 'Planning' },
-  { to: '/assistant', icon: Sparkles, label: 'IA' },
+  { to: '/app/dashboard', icon: Home, label: 'Accueil' },
+  { to: '/app/courses', icon: BookOpen, label: 'Cours' },
+  { to: '/app/exercises', icon: CheckSquare, label: 'Exercices' },
+  { to: '/app/planning', icon: Calendar, label: 'Planning' },
+  { to: '/app/assistant', icon: Sparkles, label: 'IA' },
 ];
 
 export default function BottomNav() {
