@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Auth from './pages/Auth';
+import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import Courses from './pages/Courses';
 import Exercises from './pages/Exercises';
@@ -34,19 +35,20 @@ function App() {
     <Router>
       <AuthProvider>
         <Routes>
-          {/* Public route */}
+          <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
 
           {/* Protected routes */}
           <Route
-            path="/"
+            path="/app"
             element={
               <ProtectedRoute>
                 <Layout />
               </ProtectedRoute>
             }
           >
-            <Route index element={<Dashboard />} />
+            <Route index element={<Navigate to="/app/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
             <Route path="courses" element={<Courses />} />
             <Route path="courses/lesson/:lessonId" element={<LessonView />} />
             <Route path="exercises" element={<Exercises />} />
@@ -76,7 +78,7 @@ function App() {
           </Route>
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
         </Routes>
       </AuthProvider>
     </Router>

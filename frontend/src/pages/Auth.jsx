@@ -155,7 +155,7 @@ export default function Auth() {
     }
   };
 
-  if (user) return <Navigate to={user.role === 'admin' ? '/admin' : '/'} replace />;
+  if (user) return <Navigate to={user.role === 'admin' ? '/admin' : '/app/dashboard'} replace />;
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -174,7 +174,7 @@ export default function Auth() {
         });
       }
       // Rediriger selon le rôle
-      navigate(loggedUser?.role === 'admin' ? '/admin' : '/');
+      navigate(loggedUser?.role === 'admin' ? '/admin' : '/app/dashboard');
     } catch (err) {
       setApiError(err.message);
     } finally {

@@ -55,15 +55,15 @@ function AvatarWithDropdown({ user, initials, logout, navigate, isMobile }) {
 }
 
 const routeLabels = {
-  '/': 'Tableau de bord',
-  '/courses': 'Bibliothèque de cours',
-  '/sheets': 'Fiches de révision',
-  '/exercises': 'Exercices',
-  '/quizzes': 'QCM',
-  '/assistant': 'Assistant IA',
-  '/planning': 'Planning',
-  '/progress': 'Mes performances',
-  '/exams': 'Annales du Bac',
+  '/app/dashboard': 'Tableau de bord',
+  '/app/courses': 'Bibliothèque de cours',
+  '/app/sheets': 'Fiches de révision',
+  '/app/exercises': 'Exercices',
+  '/app/quizzes': 'QCM',
+  '/app/assistant': 'Assistant IA',
+  '/app/planning': 'Planning',
+  '/app/progress': 'Mes performances',
+  '/app/exams': 'Annales du Bac',
 };
 
 export default function Layout() {

@@ -117,7 +117,7 @@ export default function AdminLayout() {
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155' }}>Système Opérationnel</span>
             </div>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/app/dashboard')}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.75rem',
                 background: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '20px',

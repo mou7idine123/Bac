@@ -7,14 +7,14 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/courses', label: 'Cours', icon: BookOpen },
-  { path: '/summaries', label: 'Résumés', icon: BookMarked },
-  { path: '/sheets', label: 'Fiches', icon: FileText },
-  { path: '/exercises', label: 'Exercices', icon: CheckSquare },
-  { path: '/exams', label: 'Annales', icon: FileText },
-  { path: '/assistant', label: 'Assistant IA', icon: MessageSquare, badge: 'IA' },
-  { path: '/planning', label: 'Planning', icon: Calendar },
+  { path: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/app/courses', label: 'Cours', icon: BookOpen },
+  { path: '/app/summaries', label: 'Résumés', icon: BookMarked },
+  { path: '/app/sheets', label: 'Fiches', icon: FileText },
+  { path: '/app/exercises', label: 'Exercices', icon: CheckSquare },
+  { path: '/app/exams', label: 'Annales', icon: FileText },
+  { path: '/app/assistant', label: 'Assistant IA', icon: MessageSquare, badge: 'IA' },
+  { path: '/app/planning', label: 'Planning', icon: Calendar },
 ];
 
 // Badge couleur par série
@@ -43,7 +43,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       {/* Logo */}
-      <Link to="/" className="sidebar-logo" style={{ textDecoration: 'none' }}>
+      <Link to="/app/dashboard" className="sidebar-logo" style={{ textDecoration: 'none' }}>
         <div className="sidebar-logo-icon">
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '0.9rem' }}>S3C</span>
         </div>
@@ -61,7 +61,6 @@ export default function Sidebar() {
             <li key={path}>
               <NavLink
                 to={path}
-                end={path === '/'}
                 className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
               >
                 <span className="nav-icon"><Icon size={17} /></span>
