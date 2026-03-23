@@ -5,10 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import FileViewer from '../components/FileViewer';
 
 const subjectMeta = {
-  'Mathématiques': { emoji: '📘', gradient: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#667eea', bg: 'rgba(102,126,234,0.1)' },
-  'Physique': { emoji: '⚛️', gradient: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#f5576c', bg: 'rgba(245,87,108,0.1)' },
-  'Sciences naturelles': { emoji: '🌿', gradient: 'linear-gradient(135deg,#4facfe,#00f2fe)', color: '#4facfe', bg: 'rgba(79,172,254,0.1)' },
-  'Physique et Chimie': { emoji: '🧪', gradient: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#f5576c', bg: 'rgba(245,87,108,0.1)' },
+  'Mathématiques': { gradient: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#667eea', bg: 'rgba(102,126,234,0.1)' },
+  'Physique': { gradient: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#f5576c', bg: 'rgba(245,87,108,0.1)' },
+  'Sciences naturelles': { gradient: 'linear-gradient(135deg,#4facfe,#00f2fe)', color: '#4facfe', bg: 'rgba(79,172,254,0.1)' },
+  'Physique et Chimie': { gradient: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#f5576c', bg: 'rgba(245,87,108,0.1)' },
 };
 
 export default function Exams() {
@@ -211,8 +211,9 @@ export default function Exams() {
                       <div style={{
                         width: 42, height: 42, borderRadius: 10,
                         background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '1.4rem',
-                      }}>{meta.emoji}</div>
+                      }}>
+                        <FileText size={20} color={meta.color} />
+                      </div>
                       <div>
                         <div style={{ fontWeight: 800, fontSize: '0.9rem', lineHeight: 1.2 }}>{item.subject}</div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
@@ -311,22 +312,27 @@ export default function Exams() {
             );
           })}
         </div>
-      )}
+      )
+      }
 
-      {filtered.length === 0 && !loading && !error && (
-        <div className="empty-state card" style={{ marginTop: '2rem' }}>
-          <FileText size={36} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }} />
-          <p style={{ fontWeight: 600 }}>Aucune annale trouvée</p>
-          <p style={{ fontSize: '0.85rem' }}>Nous ajoutons régulièrement de nouveaux contenus. Revenez bientôt !</p>
-        </div>
-      )}
+      {
+        filtered.length === 0 && !loading && !error && (
+          <div className="empty-state card" style={{ marginTop: '2rem' }}>
+            <FileText size={36} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }} />
+            <p style={{ fontWeight: 600 }}>Aucune annale trouvée</p>
+            <p style={{ fontSize: '0.85rem' }}>Nous ajoutons régulièrement de nouveaux contenus. Revenez bientôt !</p>
+          </div>
+        )
+      }
 
-      {viewerPdf && (
-        <FileViewer
-          file={{ nom: viewerPdf.title, chemin_fichier: viewerPdf.url }}
-          onClose={() => setViewerPdf(null)}
-        />
-      )}
-    </div>
+      {
+        viewerPdf && (
+          <FileViewer
+            file={{ nom: viewerPdf.title, chemin_fichier: viewerPdf.url }}
+            onClose={() => setViewerPdf(null)}
+          />
+        )
+      }
+    </div >
   );
 }

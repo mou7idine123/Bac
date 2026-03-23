@@ -3,7 +3,6 @@ import { BookOpen, ExternalLink, Sparkles, ChevronDown, ChevronRight, Search, Fi
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../apiConfig';
 
-const BACKEND_URL = 'http://localhost:8000';
 
 const gradients = [
     'linear-gradient(135deg,#667eea,#764ba2)',
@@ -119,7 +118,6 @@ export default function ChapterSummaries() {
                             border: activeSubjectId === s.id ? 'none' : '1px solid var(--border-glass)',
                         }}
                     >
-                        {s.emoji && <span>{s.emoji}</span>}
                         <BookOpen size={14} />
                         {s.name}
                     </button>
@@ -172,7 +170,7 @@ export default function ChapterSummaries() {
                                     {expandedChapter === r.id && (
                                         <div style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid var(--border-soft)' }}>
                                             <a
-                                                href={`${BACKEND_URL}${r.pdf_url}`}
+                                                href={r.pdf_url}
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 style={{
@@ -217,7 +215,7 @@ export default function ChapterSummaries() {
                                 <div
                                     key={sheet.id}
                                     className="card card-hover"
-                                    onClick={() => sheet.pdf_url && window.open(`${BACKEND_URL}${sheet.pdf_url}`, '_blank')}
+                                    onClick={() => sheet.pdf_url && window.open(sheet.pdf_url, '_blank')}
                                     style={{
                                         padding: '1rem 1.25rem', cursor: sheet.pdf_url ? 'pointer' : 'default',
                                         display: 'flex', alignItems: 'center', gap: '1rem',

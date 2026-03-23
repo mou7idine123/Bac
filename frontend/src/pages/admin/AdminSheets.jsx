@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { API_BASE_URL } from '../../apiConfig';
 
-const BACKEND_URL = 'http://localhost:8000';
 const EMPTY_FORM = { title: '', subject_id: '' };
 
 export default function AdminSheets() {
@@ -278,7 +277,7 @@ export default function AdminSheets() {
                                 {isEdit && existingPdf && (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem', background: '#f0fdf4', borderRadius: '6px', border: '1px solid #86efac', fontSize: '0.78rem', color: '#166534' }}>
                                         <FileText size={13} />
-                                        <a href={`${BACKEND_URL}${existingPdf}`} target="_blank" rel="noreferrer" style={{ color: '#166534' }}>PDF actuel</a>
+                                        <a href={existingPdf} target="_blank" rel="noreferrer" style={{ color: '#166534' }}>PDF actuel</a>
                                         <button type="button" onClick={() => setExistingPdf(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}><X size={13} /></button>
                                     </div>
                                 )}

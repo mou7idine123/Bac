@@ -86,14 +86,15 @@ export default function Progress() {
             {stats.subject_stats && stats.subject_stats.length > 0 ? (
               stats.subject_stats.map(s => {
                 const color = subjectColor[s.name] || '#667eea';
-                const emoji = s.name.includes('Math') ? '📘' : s.name.includes('Phy') ? '⚛️' : s.name.includes('Nat') ? '🌿' : '📄';
                 const totalItems = s.exercises_done + s.exams_done;
                 const approxProg = Math.min(100, (s.exercises_done * 2) + (s.exams_done * 10));
 
                 return (
                   <div key={s.name}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.65rem' }}>
-                      <span style={{ fontSize: '1.5rem' }}>{emoji}</span>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <FileText size={18} color={color} />
+                      </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.4rem' }}>
                           <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{s.name}</span>

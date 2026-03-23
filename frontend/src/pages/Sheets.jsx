@@ -4,7 +4,6 @@ import { Book, FileText, CheckCircle, BookOpen, Download, ExternalLink, Link as 
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../apiConfig';
 
-const BACKEND_URL = 'http://localhost:8000';
 
 export default function Sheets() {
   const { user } = useAuth();
@@ -43,7 +42,7 @@ export default function Sheets() {
 
   const handleLessonClick = async (lesson) => {
     if (lesson.pdf_url) {
-      window.open(`${BACKEND_URL}${lesson.pdf_url}`, '_blank');
+      window.open(lesson.pdf_url, '_blank');
       try {
         const token = localStorage.getItem('bac_token');
         await fetch(`${API_BASE_URL}/courses/lesson-progress`, {
@@ -101,7 +100,6 @@ export default function Sheets() {
               border: activeId === s.id ? 'none' : '1px solid var(--border-glass)',
             }}
           >
-            <span>{s.emoji}</span>
             {s.name}
             <span style={{
               padding: '1px 6px', borderRadius: 'var(--r-full)',
@@ -127,11 +125,11 @@ export default function Sheets() {
           <section>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
               <div style={{ width: 8, height: 28, background: 'linear-gradient(135deg, #f59e0b, #d97706)', borderRadius: '4px' }}></div>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>📋 Fiches & Résumés</h2>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Fiches & Résumés</h2>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
               {current.sheets.map((sheet) => (
-                <div key={sheet.id} className="card" onClick={() => sheet.pdf_url && window.open(`${BACKEND_URL}${sheet.pdf_url}`, '_blank')}
+                <div key={sheet.id} className="card" onClick={() => sheet.pdf_url && window.open(sheet.pdf_url, '_blank')}
                   style={{
                     padding: '1.25rem', cursor: 'pointer', transition: 'var(--t)',
                     border: '1px solid var(--border-soft)', display: 'flex', alignItems: 'center', gap: '1rem'

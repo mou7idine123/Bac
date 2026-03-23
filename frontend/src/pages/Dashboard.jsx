@@ -4,6 +4,7 @@ import {
   BookOpen, TrendingUp, CheckSquare, Calendar, ArrowRight,
   Sparkles, FlaskConical, Ruler, Play, Zap, Brain, GitBranch,
   Target, Trophy, ChevronRight, AlertTriangle, Star,
+  Dna, Cpu, Languages, Scale, Globe, GraduationCap, Flame,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ProgressRing from '../components/ProgressRing';
@@ -18,9 +19,9 @@ const SERIES_DATA = {
     gradient: 'linear-gradient(135deg, #4f7af8 0%, #764ba2 100%)',
     icon: Ruler,
     subjects: [
-      { name: 'Mathématiques', color: '#4f7af8', bg: 'rgba(79,122,248,0.1)', icon: '📐' },
-      { name: 'Physique-Chimie', color: '#f5576c', bg: 'rgba(245,87,108,0.1)', icon: '⚡' },
-      { name: 'Informatique', color: '#10b981', bg: 'rgba(16,185,129,0.1)', icon: '💻' },
+      { name: 'Mathématiques', color: '#4f7af8', bg: 'rgba(79,122,248,0.1)', icon: Ruler },
+      { name: 'Physique-Chimie', color: '#f5576c', bg: 'rgba(245,87,108,0.1)', icon: Zap },
+      { name: 'Informatique', color: '#10b981', bg: 'rgba(16,185,129,0.1)', icon: Cpu },
     ],
   },
   D: {
@@ -30,9 +31,9 @@ const SERIES_DATA = {
     gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
     icon: FlaskConical,
     subjects: [
-      { name: 'Sciences Naturelles', color: '#10b981', bg: 'rgba(16,185,129,0.1)', icon: '🧬' },
-      { name: 'Physique-Chimie', color: '#f5576c', bg: 'rgba(245,87,108,0.1)', icon: '⚡' },
-      { name: 'Mathématiques', color: '#4f7af8', bg: 'rgba(79,122,248,0.1)', icon: '📐' },
+      { name: 'Sciences Naturelles', color: '#10b981', bg: 'rgba(16,185,129,0.1)', icon: Dna },
+      { name: 'Physique-Chimie', color: '#f5576c', bg: 'rgba(245,87,108,0.1)', icon: Zap },
+      { name: 'Mathématiques', color: '#4f7af8', bg: 'rgba(79,122,248,0.1)', icon: Ruler },
     ],
   },
 };
@@ -45,9 +46,9 @@ const AI_ACTIONS = [
 ];
 
 const TO_REVIEW = [
-  { subject: 'Dérivées & Intégrales', reason: 'Dernière tentative < 60%', urgency: 'high', icon: '📐' },
-  { subject: 'Électricité', reason: 'Pas révisé depuis 5 jours', urgency: 'medium', icon: '⚡' },
-  { subject: 'Génétique', reason: 'QCM non validé', urgency: 'medium', icon: '🧬' },
+  { subject: 'Dérivées & Intégrales', reason: 'Dernière tentative < 60%', urgency: 'high', icon: Ruler },
+  { subject: 'Électricité', reason: 'Pas révisé depuis 5 jours', urgency: 'medium', icon: Zap },
+  { subject: 'Génétique', reason: 'QCM non validé', urgency: 'medium', icon: Dna },
 ];
 
 /* ─── Petit sous-composant pour les barres animées ─── */
@@ -220,28 +221,28 @@ export default function Dashboard() {
 
   const getSubjectIcon = (name) => {
     const map = {
-      'Mathématiques': '📐',
-      'Physique-Chimie': '⚡',
-      'Sciences Naturelles': '🧬',
-      'Informatique': '💻',
-      'Anglais': '🇬🇧',
-      'Français': '🇫🇷',
-      'Philosophie': '⚖️',
+      'Mathématiques': Ruler,
+      'Physique-Chimie': Zap,
+      'Sciences Naturelles': Dna,
+      'Informatique': Cpu,
+      'Anglais': Languages,
+      'Français': Languages,
+      'Philosophie': Scale,
     };
-    return map[name] || '📚';
+    return map[name] || BookOpen;
   };
   const getSubjectAesthetics = (name) => {
     const config = {
-      'Mathématiques': { icon: '📐', color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
-      'Physique-Chimie': { icon: '⚡', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-      'Sciences Naturelles': { icon: '🧬', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
-      'Informatique': { icon: '💻', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-      'Anglais': { icon: '🇬🇧', color: '#ec4899', bg: 'rgba(236,72,153,0.1)' },
-      'Français': { icon: '🇫🇷', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
-      'Philosophie': { icon: '⚖️', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
-      'Histoire-Géo': { icon: '🌍', color: '#eab308', bg: 'rgba(234,179,8,0.1)' },
+      'Mathématiques': { icon: Ruler, color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
+      'Physique-Chimie': { icon: Zap, color: '#f5576c', bg: 'rgba(245,158,11,0.1)' },
+      'Sciences Naturelles': { icon: Dna, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+      'Informatique': { icon: Cpu, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+      'Anglais': { icon: Languages, color: '#ec4899', bg: 'rgba(236,72,153,0.1)' },
+      'Français': { icon: Languages, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+      'Philosophie': { icon: Scale, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
+      'Histoire-Géo': { icon: Globe, color: '#eab308', bg: 'rgba(234,179,8,0.1)' },
     };
-    return config[name] || { icon: '📚', color: '#4f46e5', bg: 'rgba(79,70,229,0.1)' };
+    return config[name] || { icon: BookOpen, color: '#4f46e5', bg: 'rgba(79,70,229,0.1)' };
   };
 
   return (
@@ -273,29 +274,18 @@ export default function Dashboard() {
         }} />
 
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-              background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 700,
-              padding: '0.25rem 0.75rem', borderRadius: 99, letterSpacing: '0.04em',
-            }}>
-              <SeriesIcon size={12} /> {data.label} — {data.sublabel}
-            </span>
-          </div>
           <h1 style={{
             fontFamily: 'var(--font-display)', fontSize: 'clamp(1.4rem, 3.5vw, 2rem)',
             fontWeight: 900, color: 'white', margin: 0, lineHeight: 1.2, marginBottom: '0.5rem',
           }}>
-            {greeting}, {firstName} 👋
+            {greeting}, {firstName}
           </h1>
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.95rem', margin: 0, fontWeight: 500 }}>
             {globalProgress >= 80
-              ? '🔥 Tu es en excellente forme ! Continue ce rythme.'
+              ? 'Tu es en excellente forme ! Continue ce rythme.'
               : globalProgress >= 50
-                ? '📈 Tu progresses bien ! Ne relâche pas l\'effort.'
-                : '🎯 Chaque révision te rapproche du bac. Courage !'}
+                ? 'Tu progresses bien ! Ne relâche pas l\'effort.'
+                : 'Chaque révision te rapproche du bac. Courage !'}
           </p>
 
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
@@ -403,7 +393,7 @@ export default function Dashboard() {
                 Recommandations
               </div>
               <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                👉 À réviser aujourd'hui
+                À réviser aujourd'hui
               </h3>
             </div>
             <div style={{
@@ -440,7 +430,9 @@ export default function Dashboard() {
                     onMouseOut={e => e.currentTarget.style.transform = 'none'}
                     onClick={() => navigate('/app/planning')}
                   >
-                    <span style={{ fontSize: '1.25rem' }}>{icon}</span>
+                    <span style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', color: u.color }}>
+                      <SubjectIcon size={20} />
+                    </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {item.chapter_title || item.subject_name}
@@ -554,7 +546,7 @@ export default function Dashboard() {
                       background: 'linear-gradient(135deg, #f093fb, #f5576c)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
                     }}>
-                      <BookOpen size={16} />
+                      <GraduationCap size={16} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

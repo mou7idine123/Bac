@@ -58,11 +58,11 @@ export default function StreakCard() {
 
   const motivationMsg = isActive
     ? streak.current >= 7
-      ? '🏆 Incroyable ! 7 jours consécutifs !'
+      ? 'Incroyable ! 7 jours consécutifs !'
       : streak.current >= 3
-      ? '🔥 Tu es en feu ! Continue !'
-      : '⚡ Belle série, garde le rythme !'
-    : '🎯 Commence ta série aujourd\'hui !';
+        ? 'Tu es en feu ! Continue !'
+        : 'Belle série, garde le rythme !'
+    : 'Commence ta série aujourd\'hui !';
 
   return (
     <div style={{

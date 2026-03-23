@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, BookOpen, FileText } from 'lucide-react';
 import { API_BASE_URL } from '../apiConfig';
 
-const BACKEND_URL = 'http://localhost:8000';
 
 /**
  * Splits HTML content into pages.

@@ -16,7 +16,7 @@ const initialMessages = [
   {
     id: 1,
     role: 'assistant',
-    text: "Bonjour ! Je suis votre assistant académique IA 🎓\n\nJe suis disponible 24h/24 pour vous aider à comprendre vos cours, résoudre des exercices ou générer des fiches de révision. Comment puis-je vous aider aujourd'hui ?",
+    text: "Bonjour ! Je suis votre assistant académique IA\n\nJe suis disponible 24h/24 pour vous aider à comprendre vos cours, résoudre des exercices ou générer des fiches de révision. Comment puis-je vous aider aujourd'hui ?",
     time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
   },
 ];

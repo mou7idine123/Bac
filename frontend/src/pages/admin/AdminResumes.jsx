@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, ArrowLeft, Filter, FileText, Upload, CheckCircle, Search } from 'lucide-react';
 import { API_BASE_URL } from '../../apiConfig';
 
-const BACKEND_URL = 'http://localhost:8000';
 
 export default function AdminResumes() {
     const [resumes, setResumes] = useState([]);
@@ -284,7 +283,7 @@ export default function AdminResumes() {
                                         </td>
                                         <td style={{ padding: '1rem 1.5rem' }}>
                                             {r.pdf_url && (
-                                                <a href={`${BACKEND_URL}${r.pdf_url}`} target="_blank" rel="noreferrer" style={{ color: '#4f46e5', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem', fontWeight: 600 }}>
+                                                <a href={r.pdf_url} target="_blank" rel="noreferrer" style={{ color: '#4f46e5', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem', fontWeight: 600 }}>
                                                     <FileText size={16} /> PDF
                                                 </a>
                                             )}

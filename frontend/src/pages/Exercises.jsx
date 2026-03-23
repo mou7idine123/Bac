@@ -7,7 +7,6 @@ import FileViewer from '../components/FileViewer';
 import AIExerciseGenerator from '../components/AIExerciseGenerator';
 import ExerciseViewer from '../components/ExerciseViewer';
 
-const BACKEND_URL = 'http://localhost:8000';
 
 const difficultyConfig = {
   'easy': { color: '#16a34a', bg: 'rgba(46,213,115,0.12)', label: 'Facile' },
@@ -233,25 +232,6 @@ export default function Exercises() {
             </>
           )}
 
-          {/* Simulation Banner */}
-          <div style={{
-            background: 'linear-gradient(135deg, #4f7af8, #764ba2)',
-            borderRadius: '20px', padding: '2.5rem',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            boxShadow: '0 10px 30px rgba(79,122,248,0.2)',
-            color: 'white',
-            marginTop: '2rem'
-          }}>
-            <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem', fontFamily: 'var(--font-display)' }}>Auto-évaluation Automatisée</h2>
-              <p style={{ opacity: 0.9, maxWidth: 500, fontSize: '0.92rem' }}>
-                Pratiquez avec des centaines d'exercices classés par chapitre. Pour chaque exercice, vous trouverez l'énoncé et la solution détaillée pour progresser rapidement.
-              </p>
-            </div>
-            <button style={{ background: 'white', color: '#4f7af8', border: 'none', padding: '0.8rem 1.8rem', borderRadius: '12px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-              Simulation Globale
-            </button>
-          </div>
         </>
       ) : (
         <AIExerciseGenerator series={series} onExerciseGenerated={fetchExercises} />
