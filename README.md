@@ -1,7 +1,17 @@
-# 🎓 PrepBac — Plateforme de Préparation au Baccalauréat
+# PrepBac — Plateforme de Préparation au Baccalauréat
 
 > Application web éducative moderne pour préparer le Baccalauréat mauritanien (Séries C & D).  
 > Interface premium mobile-first avec IA intégrée, gamification et suivi de progression.
+
+---
+
+## 🆕 Mises à jour récentes (Mars 2026)
+
+L'application a subi une refonte majeure pour garantir une expérience utilisateur de classe mondiale :
+- **Design System Icon-Driven** : Transition complète des emojis vers une iconographie professionnelle via `lucide-react`.
+- **Navigation Mobile Premium** : Implémentation d'une barre de navigation avec menu extensible ("Plus") pour un accès rapide à toutes les sections.
+- **Visualisation PDF native** : Nouveau composant `FileViewer` optimisé pour la production avec gestion du cache et fallback.
+- **Standardisation des URLs** : Élimination des adresses serveurs en dur au profit de chemins relatifs, garantissant une portabilité totale.
 
 ---
 
@@ -10,27 +20,27 @@
 ### Espace Étudiant
 | Module | Description |
 |--------|-------------|
-| 📊 **Dashboard** | Vue d'ensemble personnalisée : progression, streak, recommandations, accès rapide |
-| 📚 **Cours** | Bibliothèque de leçons par matière et chapitre, lecture de PDF et contenu riche |
-| 🏋️ **Exercices** | Exercices pratiques avec correction et Générateur IA |
-| 📄 **Fiches** | Fiches de révision par chapitre |
-| 🗂️ **Annales** | Sujets d'examens officiels (PDF + corrections) |
-| 🗓️ **Planning** | Plan de révision personnalisé et calendrier d'étude |
-| 🤖 **Assistant IA** | Tuteur conversationnel (Llama-3.3-70B) avec vision (LLaMA-4-Scout) : explique les cours, génère des exercices, lit les documents |
-| 🔥 **Streak & Badges** | Système de gamification : série quotidienne, badges de progression |
+| **Dashboard** | Vue d'ensemble personnalisée : progression, streak, recommandations, accès rapide |
+| **Cours** | Bibliothèque de leçons par matière et chapitre, lecture de PDF via FileViewer natif |
+| **Exercices** | Exercices pratiques avec correction et Générateur IA |
+| **Fiches** | Fiches de révision consolidées par chapitre |
+| **Annales** | Sujets d'examens officiels (Programmation Mauritanie) |
+| **Planning** | Plan de révision personnalisé généré par IA |
+| **Assistant IA** | Tuteur conversationnel (Llama-3.3-70B) avec vision (LLaMA-4-Scout) |
+| **Navigation** | Bar de navigation mobile optimisée avec menu "Plus" intuitif |
 
 ### Espace Admin
 | Page | Description |
 |------|-------------|
-| 📊 Dashboard | Statistiques globales de la plateforme |
-| 👥 Utilisateurs | Gestion des comptes étudiants |
-| 📖 Matières | Création et gestion des matières (Séries dynamiques via JSON) |
-| 📂 Chapitres | Organisation des chapitres par matière |
-| 📋 Cours & Leçons | Ajout de contenu pédagogique |
-| ✏️ Exercices | Gestion des exercices (Classiques ou générés par IA) |
-| 📑 Annales | Upload des sujets d'examens officiels |
-| 📄 Résumés | Upload des fiches de révision PDF |
-| ⚙️ Paramètres | Configuration générale |
+| Dashboard | Statistiques globales et monitoring |
+| Utilisateurs | Gestion des comptes et rôles (Student/Admin) |
+| Matières | Configuration des matières et coefficients par série |
+| Chapitres | Organisation granulaire des chapitres avec visibilité multi-séries |
+| Cours & Leçons | Éditeur de contenu pédagogique riche |
+| Exercices | Banque d'exercices classiques et générés |
+| Annales | Upload et indexation des examens officiels |
+| Résumés | Gestion des fiches de synthèse indépendantes |
+| Paramètres | Configuration globale du système |
 
 ---
 

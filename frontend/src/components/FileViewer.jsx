@@ -43,10 +43,14 @@ const FileViewer = ({ file, onClose }) => {
         }];
     }, [fileUri, fileNom]);
 
-    // Handle File Type Detection (separate from useMemo to avoid side effects there)
-    React.useEffect(() => {
+    // Detect file extension in the render scope
+    const ext = useMemo(() => {
         const uri = docs[0].uri;
-        const ext = uri.split('.').pop().split('?')[0].toLowerCase();
+        return uri.split('.').pop().split('?')[0].toLowerCase();
+    }, [docs]);
+
+    // Handle File Type Detection
+    React.useEffect(() => {
         const docViewerSupported = ['bmp', 'csv', 'htm', 'html', 'jpg', 'jpeg', 'pdf', 'png', 'tiff', 'txt', 'mp4'];
 
         if (ext === 'xlsx' || ext === 'xls') {
@@ -59,7 +63,7 @@ const FileViewer = ({ file, onClose }) => {
             setIsExcel(false);
             setIsTextFallback(false);
         }
-    }, [docs]);
+    }, [ext]);
 
     // Handle Custom Excel Loading
     React.useEffect(() => {
@@ -173,6 +177,14 @@ const FileViewer = ({ file, onClose }) => {
                                 </pre>
                             )}
                         </div>
+                    ) : ext === 'pdf' ? (
+                        /* Native iframe for PDFs to bypass react-doc-viewer sandbox issues on certain hosts */
+                        <iframe
+                            src={`${docs[0].uri}${docs[0].uri.includes('?') ? '&' : '?'}v=${new Date().getTime()}`}
+                            style={{ width: '100%', height: '100%', border: 'none', background: 'white' }}
+                            title="PDF Viewer"
+                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                        />
                     ) : (
                         <DocViewer
                             documents={docs}
